@@ -46,3 +46,8 @@
 - [x] Roll back to the stable pre-overhaul checkpoint f6b4b346.
 - [x] Verify the original console layout, detailed map, sparklines, and notification demo behavior.
 - [ ] Save the restored state as the current checkpoint and report it.
+
+# Remove map full-screen control
+
+- [x] Remove the map full-screen button and related state/imports.
+- [x] Verify the map layout remains intact and save a checkpoint.
