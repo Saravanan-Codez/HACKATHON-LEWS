@@ -28,3 +28,9 @@
 - [x] Add richer map detail and a visible full-screen map control.
 - [x] Make the demo SMS and demo call actions show clear confirmation messages.
 - [x] Verify desktop/mobile layout and interactions, then save a checkpoint.
+
+# Visual editor deletion follow-up
+
+- [x] Inspect the element reported at Home.tsx line 55 and identify the intended section.
+- [x] Apply the deletion manually if the target is still present.
+- [x] Verify the remaining layout and save a checkpoint.
