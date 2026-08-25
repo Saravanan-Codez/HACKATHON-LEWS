@@ -34,3 +34,9 @@
 - [x] Inspect the element reported at Home.tsx line 55 and identify the intended section.
 - [x] Apply the deletion manually if the target is still present.
 - [x] Verify the remaining layout and save a checkpoint.
+
+# Restore map section
+
+- [x] Restore the map panel and full-screen interaction state.
+- [x] Restore map detail markup and ensure the existing styles apply.
+- [x] Verify the dashboard layout and save a checkpoint.
