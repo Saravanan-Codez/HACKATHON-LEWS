@@ -22,3 +22,9 @@
 - [x] Restore a compact SVG sparkline in a dedicated right-hand column for each zone row.
 - [x] Keep the status and risk-score column separate from the graph column.
 - [x] Verify desktop and mobile rendering, then save a checkpoint.
+
+# Map and notification refinements
+
+- [x] Add richer map detail and a visible full-screen map control.
+- [x] Make the demo SMS and demo call actions show clear confirmation messages.
+- [x] Verify desktop/mobile layout and interactions, then save a checkpoint.
