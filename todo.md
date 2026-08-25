@@ -16,3 +16,9 @@
 - [x] Remove the small zone-list sparkline graphs and background numbers.
 - [x] Keep the zone status and risk score readable with compact row spacing.
 - [x] Verify the simplified layout and save a checkpoint.
+
+# Dedicated sparkline column
+
+- [x] Restore a compact SVG sparkline in a dedicated right-hand column for each zone row.
+- [x] Keep the status and risk-score column separate from the graph column.
+- [x] Verify desktop and mobile rendering, then save a checkpoint.
