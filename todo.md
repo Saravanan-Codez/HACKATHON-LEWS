@@ -10,3 +10,9 @@
 - [x] Separate the background risk number from the status/score row in each zone item.
 - [x] Keep the sparkline as a distinct visual layer while making the number readable behind it.
 - [x] Verify desktop and mobile rendering, then save a checkpoint.
+
+# Zone-list simplification
+
+- [x] Remove the small zone-list sparkline graphs and background numbers.
+- [x] Keep the zone status and risk score readable with compact row spacing.
+- [x] Verify the simplified layout and save a checkpoint.
