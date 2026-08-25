@@ -40,3 +40,9 @@
 - [x] Restore the map panel and full-screen interaction state.
 - [x] Restore map detail markup and ensure the existing styles apply.
 - [x] Verify the dashboard layout and save a checkpoint.
+
+# Restore pre-overhaul LEWS
+
+- [x] Roll back to the stable pre-overhaul checkpoint f6b4b346.
+- [x] Verify the original console layout, detailed map, sparklines, and notification demo behavior.
+- [ ] Save the restored state as the current checkpoint and report it.
