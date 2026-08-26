@@ -101,7 +101,7 @@
 - [x] Read the latest supplied prompt and extract concrete website changes.
 - [x] Implement the requested updates while preserving NASA EONET live mode.
 - [x] Verify build health, responsive presentation, and live-data behavior.
-- [ ] Save and report a new checkpoint.
+- [x] Save and report a new checkpoint.
 
 - [x] Report the latest verified checkpoint bcfb4065 to the user.
 
@@ -116,10 +116,22 @@
 - [x] Read the latest supplied prompt and extract concrete website changes.
 - [x] Implement the requested updates while preserving NASA EONET live mode.
 - [x] Verify build health, responsive presentation, and live-data behavior.
-- [ ] Save and report a new checkpoint.
+- [x] Save and report a new checkpoint.
 
 # Final visibility verification corrections
 
 - [x] Move region metadata below the status/signal row so it remains visually secondary.
 - [x] Confirm subtle graph grid/reference lines remain visible without competing with the signal number.
 - [x] Verify 1366x768, 1600x900, 1920x1080, and default NASA EONET mode, then save/report a fresh checkpoint.
+
+# Downloadable source package
+
+- [x] Add a project README.md stating that Jai Kishore G.V created this website.
+- [x] Document setup, testing, NASA EONET behavior, and project structure.
+- [x] Create and verify a downloadable source archive without generated dependencies or build artifacts.
+- [ ] Deliver the archive and README to the user.
+
+# Archive cleanup correction
+
+- [x] Rebuild the source archive excluding client/public/__manus__ generated runtime files.
+- [x] Verify the clean archive and then deliver it with the README.
