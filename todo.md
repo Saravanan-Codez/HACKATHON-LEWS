@@ -51,3 +51,41 @@
 
 - [x] Remove the map full-screen button and related state/imports.
 - [x] Verify the map layout remains intact and save a checkpoint.
+
+# Update from supplied prompt
+
+- [x] Read the new prompt and extract concrete website requirements.
+- [x] Implement the requested content, layout, and interaction changes.
+- [x] Verify responsive presentation, build health, and functional behavior.
+- [ ] Save the updated project checkpoint and report it.
+
+# Prompt compliance follow-up
+
+- [x] Wire the dashboard LEWS Prototype Risk Score to the backend risk engine and expose its four input contributions.
+- [x] Add arbitrary map-click location selection with nearest-event distance and selected-point analysis.
+- [x] Add a dedicated Data Sources section for NASA EONET, ISRO/Bhuvan, and the LEWS Risk Engine.
+- [x] Add explicit API failure/no-events fallback states and tests for demo/live transitions.
+- [x] Re-run type-check, build, tests, and responsive visual verification before checkpoint.
+
+# Final compliance fixes
+
+- [x] Surface rainfall, terrain, historical landslide, and recent-event inputs as explicit backend risk-engine contribution rows.
+- [x] Align advisory and status copy with prototypeRiskScore and prototypeRiskLevel.
+- [x] Add UI-level coverage for DEMO, live-data, empty-feed, and failure-fallback transitions.
+
+# Final verification corrections
+
+- [x] Replace remaining prototype-risk messaging that still uses local zone tier/score values.
+- [x] Include client-side tests in Vitest and execute DEMO, live, empty-feed, and fallback states.
+- [x] Verify the corrected dashboard and save the next checkpoint.
+
+# Final verification corrections
+
+- [x] Replace remaining prototype-risk messaging that still uses local zone tier/score values.
+- [x] Include client-side tests in Vitest and execute DEMO, live, empty-feed, and fallback states.
+- [x] Verify the corrected dashboard and save the next checkpoint.
+
+# Final status labeling correction
+
+- [x] Clearly label zone-list scores and map marker tiers as simulated sensor state rather than backend prototype risk.
+- [x] Re-run the audit, checks, and visual verification, then save a checkpoint.
