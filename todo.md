@@ -90,6 +90,19 @@
 - [x] Clearly label zone-list scores and map marker tiers as simulated sensor state rather than backend prototype risk.
 - [x] Re-run the audit, checks, and visual verification, then save a checkpoint.
 
+# Sensor-card visibility refinement
+
+- [x] Restore the vertical location, status/signal, and dedicated risk-trace hierarchy.
+- [x] Keep signal numbers outside the graph with strong contrast and a subtle graph grid.
+- [x] Verify desktop/mobile presentation and build health.
+
+# Latest prompt update completion
+
+- [x] Read the latest supplied prompt and extract concrete website changes.
+- [x] Implement the requested updates while preserving NASA EONET live mode.
+- [x] Verify build health, responsive presentation, and live-data behavior.
+- [ ] Save and report a new checkpoint.
+
 - [x] Report the latest verified checkpoint bcfb4065 to the user.
 
 # NASA EONET primary live mode
@@ -97,3 +110,16 @@
 - [x] Make NASA EONET the primary dashboard data mode while retaining an explicit demo toggle.
 - [x] Show accurate freshness, no-reported-events, and fallback language without implying certified prediction.
 - [x] Verify live-mode behavior and save a checkpoint.
+
+# Latest prompt update
+
+- [x] Read the latest supplied prompt and extract concrete website changes.
+- [x] Implement the requested updates while preserving NASA EONET live mode.
+- [x] Verify build health, responsive presentation, and live-data behavior.
+- [ ] Save and report a new checkpoint.
+
+# Final visibility verification corrections
+
+- [x] Move region metadata below the status/signal row so it remains visually secondary.
+- [x] Confirm subtle graph grid/reference lines remain visible without competing with the signal number.
+- [x] Verify 1366x768, 1600x900, 1920x1080, and default NASA EONET mode, then save/report a fresh checkpoint.
