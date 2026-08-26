@@ -138,7 +138,13 @@
 
 # GitHub repository publication
 
-- [ ] Prepare professional repository README and description with Jai Kishore G.V. attribution and no emojis.
-- [ ] Create the GitHub repository with a valid compatible name if the requested name is rejected.
-- [ ] Commit and push the complete project source, excluding dependencies, build artifacts, secrets, and generated runtime files.
-- [ ] Verify the remote repository and report its URL and commit.
+- [x] Prepare professional repository README and description with Jai Kishore G.V. attribution and no emojis.
+- [x] Create the GitHub repository with a valid compatible name if the requested name is rejected.
+- [x] Commit and push the complete project source, excluding dependencies, build artifacts, secrets, and generated runtime files.
+- [x] Verify the remote repository and report its URL and commit.
+
+# GitHub repository cleanup follow-up
+
+- [ ] Remove tracked generated Manus runtime files from the repository state.
+- [ ] Push the cleaned repository and verify GitHub contents contain source and documentation only.
+- [ ] Report the compatible repository URL and final commit SHA to the user.
