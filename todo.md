@@ -45,7 +45,7 @@
 
 - [x] Roll back to the stable pre-overhaul checkpoint f6b4b346.
 - [x] Verify the original console layout, detailed map, sparklines, and notification demo behavior.
-- [ ] Save the restored state as the current checkpoint and report it.
+- [x] Save the restored state as the current checkpoint and report it.
 
 # Remove map full-screen control
 
@@ -57,7 +57,7 @@
 - [x] Read the new prompt and extract concrete website requirements.
 - [x] Implement the requested content, layout, and interaction changes.
 - [x] Verify responsive presentation, build health, and functional behavior.
-- [ ] Save the updated project checkpoint and report it.
+- [x] Save the updated project checkpoint and report it.
 
 # Prompt compliance follow-up
 
@@ -89,3 +89,11 @@
 
 - [x] Clearly label zone-list scores and map marker tiers as simulated sensor state rather than backend prototype risk.
 - [x] Re-run the audit, checks, and visual verification, then save a checkpoint.
+
+- [x] Report the latest verified checkpoint bcfb4065 to the user.
+
+# NASA EONET primary live mode
+
+- [x] Make NASA EONET the primary dashboard data mode while retaining an explicit demo toggle.
+- [x] Show accurate freshness, no-reported-events, and fallback language without implying certified prediction.
+- [x] Verify live-mode behavior and save a checkpoint.
