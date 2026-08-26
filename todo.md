@@ -129,9 +129,16 @@
 - [x] Add a project README.md stating that Jai Kishore G.V created this website.
 - [x] Document setup, testing, NASA EONET behavior, and project structure.
 - [x] Create and verify a downloadable source archive without generated dependencies or build artifacts.
-- [ ] Deliver the archive and README to the user.
+- [x] Deliver the archive and README to the user.
 
 # Archive cleanup correction
 
 - [x] Rebuild the source archive excluding client/public/__manus__ generated runtime files.
 - [x] Verify the clean archive and then deliver it with the README.
+
+# GitHub repository publication
+
+- [ ] Prepare professional repository README and description with Jai Kishore G.V. attribution and no emojis.
+- [ ] Create the GitHub repository with a valid compatible name if the requested name is rejected.
+- [ ] Commit and push the complete project source, excluding dependencies, build artifacts, secrets, and generated runtime files.
+- [ ] Verify the remote repository and report its URL and commit.
