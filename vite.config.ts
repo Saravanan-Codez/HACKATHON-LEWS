@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+import { debugCollectorSource } from "./shared/debugCollector";
 
 // =============================================================================
 // Manus Debug Collector - Vite Plugin
@@ -98,7 +99,19 @@ function vitePluginManusDebugCollector(): Plugin {
     },
 
     configureServer(server: ViteDevServer) {
-      // POST /__manus__/logs: Browser sends logs (written directly to files)
+      // Serve the injected collector explicitly. Without this route, the
+      // dev-server history fallback returns index.html and the browser reports
+      // `Unexpected token '<'` while parsing it as JavaScript.
+      server.middlewares.use("/__manus__/debug-collector.js", (req, res, next) => {
+        if (req.method !== "GET") return next();
+        res.writeHead(200, {
+          "Content-Type": "application/javascript; charset=utf-8",
+          "Cache-Control": "no-store",
+        });
+        res.end(debugCollectorSource);
+      });
+
+      // POST /__manus__/logs: Browser sends logs, written directly to files
       server.middlewares.use("/__manus__/logs", (req, res, next) => {
         if (req.method !== "POST") {
           return next();

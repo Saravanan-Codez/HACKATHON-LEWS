@@ -195,3 +195,12 @@
 - [x] Extract the localStorage queued-report write path into a deterministic helper.
 - [x] Test the helper’s queued payload and document the interaction-verification scope.
 - [x] Run the final checks and save the latest checkpoint.
+
+# Homepage syntax-error fix
+
+- [x] Inspect browser and server logs for the unexpected `<` syntax error on `/?from_webdev=1`.
+- [x] Reproduce the homepage failure and identify the incorrect response or asset.
+- [x] Apply the minimal source or server fix without changing the LEWS visual identity.
+- [x] Add or update deterministic tests covering the corrected behavior.
+- [x] Verify type-check, build, tests, and homepage rendering.
+- [x] Save and report a corrected checkpoint.
