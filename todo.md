@@ -242,7 +242,12 @@
 
 # GitHub synchronization after AI update
 
-- [ ] Inspect the selected GitHub repository and local working-tree status.
-- [ ] Prepare a clean update containing the verified AI Risk Intelligence and Assistant files only.
-- [ ] Commit and push the latest project files to GitHub.
-- [ ] Verify the remote commit and report the repository update.
+- [x] Inspect the selected GitHub repository and local working-tree status.
+- [x] Prepare a clean update containing the verified AI Risk Intelligence and Assistant files only.
+- [x] Commit and push the latest project files to GitHub.
+- [x] Verify the remote commit and report the repository update.
+
+# GitHub synchronization evidence correction
+
+- [x] Verify the GitHub remote tree and commit range contain the AI Risk Intelligence and Assistant files without unintended artifacts.
+- [x] Report the repository URL and pushed commit SHA/link to the user.
