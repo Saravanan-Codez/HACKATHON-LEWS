@@ -145,6 +145,53 @@
 
 # GitHub repository cleanup follow-up
 
-- [ ] Remove tracked generated Manus runtime files from the repository state.
-- [ ] Push the cleaned repository and verify GitHub contents contain source and documentation only.
-- [ ] Report the compatible repository URL and final commit SHA to the user.
+- [x] Remove tracked generated Manus runtime files from the repository state.
+- [x] Push the cleaned repository and verify GitHub contents contain source and documentation only.
+- [x] Report the compatible repository URL and final commit SHA to the user.
+
+# SIH presentation content
+
+- [x] Verify project facts and external landslide references for the LEWS pitch.
+- [x] Write a 10-slide SIH outline with team-specific placeholders.
+- [x] Create a ready-to-paste Gamma prompt with visual and content instructions.
+- [x] Deliver the outline, prompt, references, and customization fields.
+
+# SIH LEWS presentation
+
+- [x] Verify project facts and authoritative landslide/NASA references.
+- [x] Write the filled 10-slide SIH outline with identity placeholders.
+- [x] Write the Gamma generation prompt and customization checklist.
+- [x] Deliver the outline and prompt as a downloadable Markdown document.
+
+# Website update from latest prompt
+
+- [x] Read the new website prompt and extract concrete requirements.
+- [x] Implement the requested changes while preserving NASA EONET live mode.
+- [x] Verify build health, interactions, responsive layout, and fallback states.
+- [x] Save and report a new project checkpoint.
+
+# Prompt-compliance completion pass
+
+- [x] Add explicit weather, routing, IoT, upload, offline-sync, and notification service boundaries with honest unavailable states.
+- [x] Add media selection, geolocation permission flow, local queued-report storage, and observable language/network controls.
+- [x] Verify report submission, network cycling, language selection, road/impact summaries, forecast updates, and live/empty/fallback states.
+- [x] Correct checklist status and save a fresh checkpoint after verification.
+
+# Upload and offline-sync completion
+
+- [x] Add explicit report-media upload and offline-sync service boundaries with honest unavailable states.
+- [x] Surface upload and sync capabilities in the system-health UI.
+- [x] Add deterministic tests for capability reporting and local report queue behavior.
+- [x] Run final checks and document the interaction verification scope before checkpointing.
+
+# Final evidence correction
+
+- [x] Extract the localStorage queued-report write path into a deterministic helper.
+- [x] Test the helper’s queued payload and document the interaction-verification scope.
+- [x] Run the final checks and save the latest checkpoint.
+
+# Final checkpoint evidence correction
+
+- [x] Extract the localStorage queued-report write path into a deterministic helper.
+- [x] Test the helper’s queued payload and document the interaction-verification scope.
+- [x] Run the final checks and save the latest checkpoint.

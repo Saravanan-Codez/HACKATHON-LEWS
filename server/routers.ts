@@ -6,6 +6,8 @@ import { publicProcedure, router } from "./_core/trpc";
 import { fetchEonetEvents } from "./services/eonetService";
 import { getHistoricalLandslideLayer } from "./services/historicalLandslideService";
 import { calculatePrototypeRisk } from "./services/riskEngine";
+import { platformServiceStatus } from "./services/platformServices";
+import { reportServiceStatus } from "./services/reportSyncService";
 
 export const appRouter = router({
   system: systemRouter,
@@ -23,6 +25,9 @@ export const appRouter = router({
   }),
   risk: router({
     score: publicProcedure.input(z.object({ rainfallScore: z.number(), terrainScore: z.number(), historicalLandslideScore: z.number(), recentEventScore: z.number() })).query(({ input }) => calculatePrototypeRisk(input)),
+  }),
+  platform: router({
+    capabilities: publicProcedure.query(() => [...platformServiceStatus(), { name: "Report media upload", capability: reportServiceStatus().mediaUpload.capability, source: "Local report workflow", message: reportServiceStatus().mediaUpload.message }, { name: "Offline report sync", capability: reportServiceStatus().offlineSync.capability, source: "Local report workflow", message: reportServiceStatus().offlineSync.message }]),
   }),
 });
 
