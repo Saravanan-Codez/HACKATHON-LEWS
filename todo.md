@@ -216,3 +216,26 @@
 # Multilingual responsive verification
 
 - [x] Visually verify the notification language selector and translated alert preview at mobile and intermediate tablet/laptop widths.
+
+# Attached prompt website update
+
+- [x] Read the attached prompt and extract concrete website requirements.
+- [x] Inspect the existing LEWS implementation for affected sections and interactions.
+- [x] Implement the prompt requirements without breaking NASA EONET, multilingual notifications, or prototype disclosures.
+- [x] Add or update deterministic tests for the changed behavior.
+- [x] Verify type-check, build, tests, and responsive visual behavior.
+- [x] Save and report a new checkpoint.
+
+# Provider-neutral LLM risk intelligence
+
+- [x] Add a server-side structured LLM analysis contract that accepts only deterministic LEWS and NASA EONET context.
+- [x] Implement safe fallback behavior for missing data, LLM errors, invalid responses, and unsupported provider claims.
+- [x] Add the AI Risk Intelligence dashboard section with loading, assessment, factors, actions, confidence, timestamp, and multilingual warning output.
+- [x] Add deterministic tests for payload validation, risk-level mapping, fallback behavior, and language output.
+- [x] Verify type-check, build, tests, responsive UI, and save a new checkpoint.
+
+# Remaining AI intelligence requirements
+
+- [x] Add a contextual LEWS AI Assistant that answers only from current verified dashboard data with safe unavailable-data responses.
+- [x] Trigger fresh AI analysis when the calculated risk category changes, while avoiding repeated calls for unchanged state.
+- [x] Verify the live analysis and assistant flows, tests, responsive UI, and checkpoint the complete prompt implementation.
