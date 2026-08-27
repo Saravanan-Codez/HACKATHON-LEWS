@@ -204,3 +204,15 @@
 - [x] Add or update deterministic tests covering the corrected behavior.
 - [x] Verify type-check, build, tests, and homepage rendering.
 - [x] Save and report a corrected checkpoint.
+
+# Multilingual notification system
+
+- [x] Inspect the existing notification controls and persisted language behavior.
+- [x] Add English, Tamil, Telugu, Kannada, and Malayalam notification templates for emergency, landslide, road, evacuation, safety, and community messages.
+- [x] Persist the selected notification language and expose translated alert previews through the existing notification module.
+- [x] Verify language switching, persistence, responsive layout, type-check, build, and tests without changing the existing website UI.
+- [x] Save and report a new checkpoint.
+
+# Multilingual responsive verification
+
+- [x] Visually verify the notification language selector and translated alert preview at mobile and intermediate tablet/laptop widths.
