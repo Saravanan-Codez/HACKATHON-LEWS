@@ -239,3 +239,10 @@
 - [x] Add a contextual LEWS AI Assistant that answers only from current verified dashboard data with safe unavailable-data responses.
 - [x] Trigger fresh AI analysis when the calculated risk category changes, while avoiding repeated calls for unchanged state.
 - [x] Verify the live analysis and assistant flows, tests, responsive UI, and checkpoint the complete prompt implementation.
+
+# GitHub synchronization after AI update
+
+- [ ] Inspect the selected GitHub repository and local working-tree status.
+- [ ] Prepare a clean update containing the verified AI Risk Intelligence and Assistant files only.
+- [ ] Commit and push the latest project files to GitHub.
+- [ ] Verify the remote commit and report the repository update.
