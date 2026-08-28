@@ -251,3 +251,16 @@
 
 - [x] Verify the GitHub remote tree and commit range contain the AI Risk Intelligence and Assistant files without unintended artifacts.
 - [x] Report the repository URL and pushed commit SHA/link to the user.
+
+# Vercel deployment UI diagnosis
+
+- [x] Inspect the deployed Vercel document, JavaScript bundles, styles, and runtime console/network behavior.
+- [x] Compare the Vercel build configuration with the Vite full-stack project requirements.
+- [x] Apply any required deployment-compatible project fix or provide exact Vercel configuration steps.
+- [x] Verify the deployed UI and report the resolution.
+
+# Vercel deployment evidence correction
+
+- [ ] Commit and push the Vercel output-directory configuration to the connected GitHub repository.
+- [ ] Recheck the Vercel URL after its next deployment and confirm the LEWS UI renders.
+- [ ] Report the exact Vercel configuration change and any remaining full-stack limitations.
