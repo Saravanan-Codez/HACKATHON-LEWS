@@ -264,3 +264,8 @@
 - [ ] Commit and push the Vercel output-directory configuration to the connected GitHub repository.
 - [ ] Recheck the Vercel URL after its next deployment and confirm the LEWS UI renders.
 - [ ] Report the exact Vercel configuration change and any remaining full-stack limitations.
+
+# Vercel visual asset restoration
+
+- [ ] Restore the hosted hero, logo, terrain, and slope imagery on the Vercel deployment.
+- [ ] Rebuild, push, and recheck the live Vercel visual presentation after the asset fix.
