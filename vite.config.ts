@@ -166,6 +166,7 @@ function vitePluginManusDebugCollector(): Plugin {
 const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
 
 export default defineConfig({
+  base: process.env.GITHUB_PAGES === "true" ? "/HACKTHON-1LEWS/" : "/",
   plugins,
   resolve: {
     alias: {
