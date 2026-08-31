@@ -166,7 +166,7 @@ function vitePluginManusDebugCollector(): Plugin {
 const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
 
 export default defineConfig({
-  base: process.env.GITHUB_PAGES === "true" ? "/HACKTHON-1LEWS/" : "/",
+  base: process.env.GITHUB_PAGES === "true" ? "/HACKATHON-LEWS/" : "/",
   plugins,
   resolve: {
     alias: {
@@ -181,6 +181,15 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          trpc: ["@trpc/client", "@trpc/react-query", "@tanstack/react-query"],
+          icons: ["lucide-react"],
+        },
+      },
+    },
   },
   server: {
     host: true,
