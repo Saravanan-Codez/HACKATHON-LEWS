@@ -100,6 +100,49 @@ Each language supports 6 incident notification types:
 5. `SAFETY_UPDATE`
 6. `COMMUNITY_NOTICE`
 
+---
+
+## Dual-Audience Architecture & Role-Based Access Control (RBAC)
+
+Emergency decision systems must maintain an open public awareness layer while reserving state-level command actions for verified emergency personnel:
+
+```
+                                  LEWS PLATFORM ACCESS
+                                           │
+             ┌─────────────────────────────┴─────────────────────────────┐
+             │                                                           │
+             ▼                                                           ▼
+     PUBLIC / CITIZEN POV                                      AUTHORITY / COMMAND POV
+  (100% Free & Open Access)                              (Authenticated Role via SSO/Portal)
+             │                                                           │
+   - View live risk scores & GIS                               - Authorize mass evacuation sirens
+   - Check road corridor closures                              - Verify/triage citizen ground reports
+   - Read 5-language advisories                                - Issue official road closure orders
+   - Submit local slope observations                           - Export audit trails for NDMA/GSI
+```
+
+### 1. How Authorities Obtain the Authenticated Role
+1. **Government Identity / Official SSO**:
+   - Authorized personnel (District Collectors, DDMA Emergency Planners, GSI Field Surveyors, Traffic Police Superintendents) authenticate via official domain email verification (`.gov.in` / `.nic.in` / enterprise SSO).
+2. **Jurisdiction-Scoped RBAC**:
+   - Roles are bounded to specific geographic monitoring nodes (e.g. Kodagu District Collector manages `KDG-03`; Nilgiris DEOC manages `NLG-05`).
+3. **Tabletop & Evaluator Mode**:
+   - In the hackathon prototype, evaluators and judges can click **"Enter as Guest Field Observer (Demo)"** on `/login` to immediately test administrative workflows without administrative setup overhead.
+
+### 2. POV Differences: Public POV vs. Authority POV
+
+| Capability / Workflow | 👤 Public Citizen POV (Open Access) | 🛡️ Authority / Field Officer POV (Authenticated) |
+|---|---|---|
+| **Access Gate** | **Zero login required** (immediate life-safety access). | **Authenticated role** (`/login` or guest evaluator mode). |
+| **Primary Goal** | Local safety, commute planning, and hazard awareness. | Incident command, evidence verification, and community evacuation. |
+| **GIS Terrain Map** | Read-only view of active risk levels & nearby NASA events. | Interactive querying, node baseline overrides, and coordinate inspector. |
+| **Citizen Reports** | **Submit** observations (tension cracks, rockfalls, photo tags). | **Triage & Sign Off**: mark reports as *Verified Ground Hazard* or *Dismissed*. |
+| **Evacuation Siren** | **Receive** emergency alerts via SMS/Voice in local languages. | **Authorize & Dispatch**: official 1-click critical alert acknowledgment. |
+| **Mountain Corridors** | **View** open/blocked status of NH 10 / Ghats links. | **Order Closures**: activate police roadblock protocols & diversion routes. |
+| **Regulatory Auditing** | None. | **Export chronological audit logs** (timestamps, alert receipts, officer ID). |
+
+---
+
 ## Multi-Route Application Architecture
 
 The system enforces a clean separation of concerns between marketing persuasion and operational execution:

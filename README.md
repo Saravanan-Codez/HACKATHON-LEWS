@@ -35,7 +35,21 @@ The application follows the **"Surveyor's Field Console"** design philosophy —
 - **🌐 5-Language Alert Preview Engine**: Incident notification templates for English, Tamil (தமிழ்), Telugu (తెలుగు), Kannada (ಕನ್ನಡ), and Malayalam (മലയാളം).
 - **🤖 Contextual AI Risk Intelligence**: Structured explanation layer that translates environmental signals into plain-language assessments, contributing factors, and safety protocols without hallucinating measurements.
 - **📱 Citizen & Field Incident Queue**: Offline-ready citizen reporting workflow capturing slope cracks, rockfalls, blocked corridors, and photo attachments with geolocation.
-- **⛈️ Controlled Storm Escalation Scenario**: Interactive demonstration mode to simulate weather deterioration, sensor threshold crossings, and critical alert transitions in real time.
+---
+
+## 👥 Dual-Audience Architecture: Public vs. Authority POV
+
+LEWS is engineered with a strict operational principle: **Emergency warning telemetry must remain 100% open and friction-free for citizens, while state-level command actions require authenticated role verification.**
+
+| Capability | 👤 Public / Citizen POV (Zero Login Required) | 🛡️ Authority / Field Commander POV (Authenticated) |
+|---|---|---|
+| **Access Policy** | **100% Free & Open** (Instant access via `/` or `/dashboard`) | **Role-Verified** (via `/login` or 1-click Guest Demo) |
+| **Primary Focus** | Immediate personal safety, commute routing, hazard awareness | Incident command, report verification, mass evacuation |
+| **Hazard Map & Gauges** | Read-only live telemetry, nearest landslides, and 48h forecast | Sensor baseline calibration, node overrides, GPS coordinate inspector |
+| **Citizen Ground Reports**| **Submit** slope observations, photos, and tension crack tags | **Triage & Sign Off**: Verify ground truth or reject false rumors |
+| **Emergency Sirens** | **Receive** localized SMS/Voice warnings in 5 Indian languages | **Authorize & Dispatch**: 1-click critical alert broadcast |
+| **Road Corridors** | **View** open/blocked status & alternate mountain routes | **Order Closures**: Coordinate traffic police roadblocks on NH passes |
+| **Auditing & NDMA Logs** | None | **Export Chronological Audit Logs** for post-disaster reviews |
 
 ---
 
