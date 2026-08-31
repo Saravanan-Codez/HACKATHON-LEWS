@@ -155,21 +155,21 @@ pnpm start
 
 ---
 
-## 📁 Project Structure
+## 📁 Project Structure & Routes
 
-| Directory / File | Description |
+| Route / File | Purpose & Description |
 |---|---|
-| `client/src/pages/Home.tsx` | Main Surveyor's Field Console dashboard & interactive controls |
-| `client/src/index.css` | Design system (basalt surfaces, limestone type, custom map styling) |
-| `client/src/lib/dataPresentation.ts` | Deterministic live, demo, empty, and fallback presentation states |
-| `client/src/lib/notificationTranslations.ts` | Multilingual notification matrix (EN, TA, TE, KN, ML) |
-| `client/src/lib/reportQueue.ts` | Local citizen report queue & offline persistence |
-| `client/src/lib/aiAnalysisFlow.ts` | Risk category change detection for AI analysis refresh |
+| `/` (`client/src/pages/LandingPage.tsx`) | **Marketing Landing Page**: Outcome-first hero, interactive telemetry preview, problem/cost comparison, features & benefits, 4-step workflow, FAQ, and conversion CTAs |
+| `/dashboard` (`client/src/pages/DashboardPage.tsx`) | **Surveyor's Field Console**: Dedicated operational dashboard with zone telemetry ribbon, interactive GIS terrain map, 4-factor risk gauges, storm sandbox, AI risk intel, situation summary, road corridors, and offline citizen reporting |
+| `/login` (`client/src/pages/LoginPage.tsx`) | **Observer Sign In**: Role selection and instant 1-click guest demo access |
+| `/signup` (`client/src/pages/SignupPage.tsx`) | **Observer Registration**: Organizational onboarding portal |
+| `/settings` (`client/src/pages/SettingsPage.tsx`) | **Console Preferences**: Notification language switcher, polling interval, and offline cache purge |
+| `client/src/components/landing/ProductPreview.tsx` | Controlled interactive marketing telemetry preview for landing hero |
+| `client/src/index.css` | Surveyor's Field Console basalt design system & responsive styling |
 | `server/services/riskEngine.ts` | 4-factor deterministic risk scoring algorithm |
 | `server/services/eonetService.ts` | NASA EONET live fetch, normalization, caching, and fallback |
 | `server/services/aiRiskService.ts` | LLM risk intelligence explanation and assistant endpoints |
 | `server/services/platformServices.ts` | Explicit capabilities boundary (honest unavailable states) |
-| `server/routers.ts` | Type-safe tRPC procedure definitions |
 | `docs/ARCHITECTURE.md` | System architecture, risk formulas, and data flow documentation |
 
 ---

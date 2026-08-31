@@ -100,6 +100,34 @@ Each language supports 6 incident notification types:
 5. `SAFETY_UPDATE`
 6. `COMMUNITY_NOTICE`
 
+## Multi-Route Application Architecture
+
+The system enforces a clean separation of concerns between marketing persuasion and operational execution:
+
+```
+/
+├── / (Marketing Landing Page)
+│   ├── Outcome-First Hero & Value Proposition
+│   ├── Interactive Controlled Product Preview (Telemetry Mockup)
+│   ├── Problem & Real Cost Consequence Analysis
+│   ├── Feature & Benefit Showcase
+│   ├── 4-Step Operational Workflow (Sense → Analyze → Explain → Act)
+│   ├── Differentiation Matrix
+│   └── FAQ & Conversion CTAs
+│
+├── /dashboard (Operational Field Console)
+│   ├── Zone Telemetry Ribbon (6 Western Ghats & Himalayan Nodes)
+│   ├── Interactive Terrain GIS Map & NASA EONET Ingestion
+│   ├── 4-Factor Deterministic Risk Engine & Gauges
+│   ├── Storm Escalation Simulation Sandbox
+│   ├── Decision Support Suite (AI Risk Intel, Situation Summary, Roads, Forecast)
+│   └── Offline-Ready Citizen & Field Incident Queue
+│
+├── /login (Authentication & Guest Observer Portal)
+├── /signup (Observer Registration Portal)
+└── /settings (System Preferences, Language, & Cache Management)
+```
+
 ---
 
 ## Directory Structure
@@ -110,13 +138,18 @@ Each language supports 6 incident notification types:
 │   ├── public/
 │   │   └── assets/              # Local, self-contained images & textures
 │   └── src/
-│       ├── App.tsx              # Root React component with Providers
-│       ├── index.css            # Surveyor's Field Console design system
+│       ├── App.tsx              # Wouter Multi-Route Switcher
+│       ├── index.css            # Design system & shared token stylesheet
 │       ├── components/          # Reusable UI components & Radix primitives
+│       │   └── landing/         # Marketing landing components & product preview
 │       ├── lib/                 # Client utilities, tRPC client, queue & translations
 │       └── pages/
-│           ├── Home.tsx         # Main interactive console dashboard
-│           └── NotFound.tsx     # 404 handler
+│           ├── LandingPage.tsx   # Marketing & conversion narrative
+│           ├── DashboardPage.tsx # Dedicated operational console
+│           ├── LoginPage.tsx     # Observer sign in & guest access
+│           ├── SignupPage.tsx    # Observer registration
+│           ├── SettingsPage.tsx  # Preferences & cache management
+│           └── NotFound.tsx      # 404 handler
 ├── docs/                        # Architecture & verification documentation
 ├── patches/                     # Local package patches (e.g. wouter)
 ├── server/
