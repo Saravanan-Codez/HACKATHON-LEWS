@@ -38,7 +38,7 @@ export default function ProductPreview() {
           </div>
           <div className="preview-window-title">
             <Activity size={12} className="text-amber-400" />
-            <span>LEWS SURROUND TELEMETRY · FIELD NODE KDG-03 (WESTERN GHATS)</span>
+            <span>LANDSORA IOT TELEMETRY · FIELD NODE KDG-03 (WESTERN GHATS)</span>
           </div>
           <span className="preview-badge">LIVE SIMULATION PREVIEW</span>
         </div>
@@ -124,7 +124,7 @@ export default function ProductPreview() {
           {/* Right Column: Dynamic Risk Engine Output & Multilingual Warning Card */}
           <div className="preview-panel output-panel">
             <div className="preview-panel-header">
-              <span>LEWS PROTOTYPE RISK SCORE</span>
+              <span>LANDSORA PROTOTYPE RISK SCORE</span>
               <span className="mono" style={{ color: tierColor }}>{tier}</span>
             </div>
 

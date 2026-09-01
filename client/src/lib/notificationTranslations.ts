@@ -2,9 +2,10 @@ export const notificationLanguageStorageKey = "lews-notification-language";
 
 export const notificationLanguages = [
   { code: "EN", label: "ENGLISH", nativeLabel: "English" },
+  { code: "HI", label: "HINDI", nativeLabel: "हिन्दी" },
+  { code: "KN", label: "KANNADA", nativeLabel: "ಕನ್ನಡ" },
   { code: "TA", label: "TAMIL", nativeLabel: "தமிழ்" },
   { code: "TE", label: "TELUGU", nativeLabel: "తెలుగు" },
-  { code: "KN", label: "KANNADA", nativeLabel: "ಕನ್ನಡ" },
   { code: "ML", label: "MALAYALAM", nativeLabel: "മലയാളം" },
 ] as const;
 
@@ -50,6 +51,32 @@ const messages: Record<NotificationLanguage, Record<NotificationKind, Notificati
     COMMUNITY_NOTICE: {
       title: "COMMUNITY NOTIFICATION",
       body: "Please share verified safety information with residents near {place}. Do not forward unconfirmed reports.",
+    },
+  },
+  HI: {
+    CRITICAL_WARNING: {
+      title: "गंभीर भूस्खलन चेतावनी",
+      body: "आपके क्षेत्र में अत्यधिक वर्षा और खतरनाक मिट्टी की स्थिति दर्ज की गई है। कृपया सतर्क रहें और स्थानीय प्रशासन के निर्देशों का पालन करें।",
+    },
+    LANDSLIDE_WARNING: {
+      title: "भूस्खलन चेतावनी",
+      body: "{place} के पास ढलान संचलन के संकेत बढ़े हैं। अस्थिर भूमि से दूर रहें और आधिकारिक सूचनाओं पर नजर रखें।",
+    },
+    ROAD_BLOCKAGE: {
+      title: "सड़क अवरोध सूचना",
+      body: "{road} मार्ग असुरक्षित या बाधित हो सकता है। कृपया इस मार्ग से बचें और वैकल्पिक मार्ग का उपयोग करें।",
+    },
+    EVACUATION: {
+      title: "सुरक्षित निकासी निर्देश",
+      body: "{place} के लिए निर्धारित सुरक्षित स्थान पर शांतिपूर्वक जाएं। आवश्यक दवाएं साथ रखें और राहत दल के निर्देशों का पालन करें।",
+    },
+    SAFETY_UPDATE: {
+      title: "सुरक्षा अपडेट",
+      body: "{place} क्षेत्र में निरंतर निगरानी जारी है। दरारों, गिरते पत्थरों और हाल ही में खिसकी ढलानों से दूर रहें।",
+    },
+    COMMUNITY_NOTICE: {
+      title: "सामुदायिक सूचना",
+      body: "{place} के निवासियों के साथ केवल सत्यापित सुरक्षा जानकारी साझा करें। अपुष्ट अफवाहों पर ध्यान न दें।",
     },
   },
   TA: {
@@ -181,3 +208,90 @@ export const renderNotification = (kind: NotificationKind, language: Notificatio
   const fill = (value: string) => value.replace(/\{(place|road)\}/g, (_, key: string) => replacements[key] ?? "");
   return { title: message.title, body: fill(message.body) };
 };
+
+/**
+ * Automatically detects the native regional language for a given monitored zone.
+ */
+export const detectLanguageForZone = (zoneIdOrName: string): NotificationLanguage => {
+  const normalized = zoneIdOrName.toUpperCase();
+  if (
+    normalized.includes("KDG") ||
+    normalized.includes("KODAGU") ||
+    normalized.includes("COORG") ||
+    normalized.includes("CHK") ||
+    normalized.includes("CHIKKAMAGALURU") ||
+    normalized.includes("UKA") ||
+    normalized.includes("UTTARA")
+  ) {
+    return "KN"; // Kannada for Karnataka Western Ghats
+  }
+  if (
+    normalized.includes("WYD") ||
+    normalized.includes("WAYANAD") ||
+    normalized.includes("IDK") ||
+    normalized.includes("IDUKKI") ||
+    normalized.includes("MNR") ||
+    normalized.includes("MUNNAR") ||
+    normalized.includes("KERALA")
+  ) {
+    return "ML"; // Malayalam for Kerala Hill Tracts
+  }
+  if (
+    normalized.includes("NLG") ||
+    normalized.includes("NILGIRIS") ||
+    normalized.includes("COONOOR") ||
+    normalized.includes("VLP") ||
+    normalized.includes("VALPARAI") ||
+    normalized.includes("TAMIL")
+  ) {
+    return "TA"; // Tamil for Tamil Nadu Ghats
+  }
+  if (
+    normalized.includes("ANDHRA") ||
+    normalized.includes("TELANGANA") ||
+    normalized.includes("VIZAG") ||
+    normalized.includes("ARAKU")
+  ) {
+    return "TE"; // Telugu for Eastern Ghats
+  }
+  if (
+    normalized.includes("SHM") ||
+    normalized.includes("SHIMLA") ||
+    normalized.includes("CHM") ||
+    normalized.includes("CHAMOLI") ||
+    normalized.includes("JOSHIMATH") ||
+    normalized.includes("MHD") ||
+    normalized.includes("MAHAD")
+  ) {
+    return "HI"; // Hindi for Northern & Central Mountain Belts
+  }
+  return "EN";
+};
+
+/**
+ * Automatically detects native regional language from GPS coordinates.
+ */
+export const detectLanguageFromCoords = (latitude: number, longitude: number): NotificationLanguage => {
+  // Northern India / Himalayas (Himachal, Uttarakhand)
+  if (latitude >= 28.0 && latitude <= 35.0 && longitude >= 75.0 && longitude <= 82.0) {
+    return "HI";
+  }
+  // Kerala polygon bounds approx (8.2°N - 12.8°N, 75°E - 77.2°E)
+  if (latitude >= 8.2 && latitude <= 12.5 && longitude >= 75.0 && longitude <= 77.2) {
+    if (latitude < 12.0 && longitude > 75.8) return "ML";
+  }
+  // Tamil Nadu bounds approx (8.1°N - 13.5°N, 76.5°E - 80.3°E)
+  if (latitude >= 8.1 && latitude <= 13.5 && longitude >= 76.5 && longitude <= 80.3) {
+    if (latitude < 12.0 && longitude > 76.8) return "TA";
+  }
+  // Karnataka bounds approx (11.5°N - 18.5°N, 74.0°E - 78.5°E)
+  if (latitude >= 11.5 && latitude <= 18.5 && longitude >= 74.0 && longitude <= 78.0) {
+    return "KN";
+  }
+  // Andhra / Telangana
+  if (latitude >= 12.5 && latitude <= 19.9 && longitude >= 78.0 && longitude <= 84.8) {
+    return "TE";
+  }
+  return "EN";
+};
+
