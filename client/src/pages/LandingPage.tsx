@@ -80,6 +80,11 @@ export default function LandingPage() {
             ))}
           </div>
 
+          <Link href="/ai-chatbot" className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-amber-300 hover:text-amber-200 font-semibold border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-all">
+            <Sparkles size={12} className="text-amber-400" />
+            <span>AI Copilot</span>
+          </Link>
+
           <Link href="/login" className="nav-auth-link">
             Sign In
           </Link>

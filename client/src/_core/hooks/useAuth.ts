@@ -23,7 +23,7 @@ export function useAuth(options?: UseAuthOptions) {
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
-      utils.auth.me.setData(undefined, null);
+      utils.auth.me.setData(undefined, { user: null, isAuthenticated: false, isGoogleAccount: false });
     },
   });
 
@@ -45,7 +45,7 @@ export function useAuth(options?: UseAuthOptions) {
       try {
         sessionStorage.removeItem("manus-cookie");
       } catch {}
-      utils.auth.me.setData(undefined, null);
+      utils.auth.me.setData(undefined, { user: null, isAuthenticated: false, isGoogleAccount: false });
       await utils.auth.me.invalidate();
     }
   }, [logoutMutation, utils]);
@@ -56,10 +56,11 @@ export function useAuth(options?: UseAuthOptions) {
       JSON.stringify(meQuery.data)
     );
     return {
-      user: meQuery.data ?? null,
+      user: meQuery.data?.user ?? null,
       loading: meQuery.isLoading || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
-      isAuthenticated: Boolean(meQuery.data),
+      isAuthenticated: Boolean(meQuery.data?.isAuthenticated),
+      isGoogleAccount: Boolean(meQuery.data?.isGoogleAccount),
     };
   }, [
     meQuery.data,
@@ -68,6 +69,7 @@ export function useAuth(options?: UseAuthOptions) {
     logoutMutation.error,
     logoutMutation.isPending,
   ]);
+
 
   useEffect(() => {
     if (!redirectOnUnauthenticated) return;
