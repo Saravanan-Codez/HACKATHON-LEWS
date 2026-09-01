@@ -16,6 +16,7 @@ import { useCriticalRiskToast } from "@/contexts/CriticalRiskToastContext";
 import { getDataPresentation } from "@/lib/dataPresentation";
 
 import { createQueuedReport, saveQueuedReport } from "@/lib/reportQueue";
+import { useTranslation } from "@/lib/useTranslation";
 import {
   detectLanguageForZone,
   detectLanguageFromCoords,
@@ -221,6 +222,7 @@ export default function DashboardPage() {
   const [reportLocation, setReportLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [networkState, setNetworkState] = useState<"ONLINE" | "LIMITED NETWORK" | "OFFLINE MODE">("ONLINE");
   const [language, setLanguage] = useState<NotificationLanguage>(() => getStoredNotificationLanguage());
+  const { t } = useTranslation(language);
   const [notificationKind, setNotificationKind] = useState<NotificationKind>("CRITICAL_WARNING");
   const [deviceHealthOpen, setDeviceHealthOpen] = useState(false);
   const [quarantineOpen, setQuarantineOpen] = useState(false);
@@ -245,6 +247,14 @@ export default function DashboardPage() {
 
   // Gemini AI Suite & Google Auth State
   const [googleAuthModalOpen, setGoogleAuthModalOpen] = useState(false);
+
+  // Synchronize document language and data-lang attribute for clean Indic typography
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.body.setAttribute("data-lang", language);
+      document.documentElement.lang = language.toLowerCase();
+    }
+  }, [language]);
 
   const authMeQuery = trpc.auth.me.useQuery();
   const liveQuery = trpc.landslides.list.useQuery(undefined, { staleTime: 300000, retry: 1 });
@@ -435,7 +445,7 @@ export default function DashboardPage() {
 
   const displayAnalysis = aiAnalysisMutation.data ?? defaultAnalysis;
 
-  // 7-Scenario Presets
+  // 7-Scenario Presets (Clean state updates without toast/notification spam)
   const setDemoScenario = (name: string) => {
     setScenario(name);
     setStorm(false);
@@ -444,73 +454,22 @@ export default function DashboardPage() {
 
     if (name === "NORMAL CONDITIONS") {
       setZones(initialZones);
-      setNotice("Scenario 1 Loaded: Normal baseline conditions · 98% Confidence.");
     } else if (name === "PERSISTENT HEAVY RAIN") {
       setZones(prev => prev.map(z => z.id === selected ? { ...z, rainfall: 22.4, soil: 82.5, score: 58, tier: "WATCH" } : z));
-      setNotice("Scenario 2 Loaded: Persistent rainfall elevating soil saturation (WATCH tier).");
     } else if (name === "EXTREME STORM & TILT") {
       setZones(prev => prev.map(z => z.id === selected ? { ...z, rainfall: 31.8, soil: 92.4, tilt: 0.128, score: 84, tier: "CRITICAL" } : z));
       setStorm(true);
-      triggerCriticalAlert({
-        nodeId: selected,
-        zoneName: zone.name,
-        state: zone.region,
-        riskScore: 84,
-        riskLevel: "CRITICAL",
-        rainfall: 31.8,
-        soilMoisture: 92.4,
-        tiltDegrees: 0.128,
-        triggerReason: `Extreme storm escalation: Rainfall 31.8mm & Tilt velocity 0.128° at ${zone.name}`,
-        thresholdExceeded: "Rain > 30mm/24h & Tilt > 0.10°",
-      });
-      setNotice("Scenario 3 Loaded: Multi-signal extreme storm escalation (CRITICAL tier).");
     } else if (name === "BAD SENSOR DATA (TILT SPIKE)") {
       setAnomalyOverride("TILT_SPIKE");
-      setNotice("Scenario 4 Loaded: Injected 0.385° tilt jump quarantined by validation layer! Risk score protected.");
     } else if (name === "WEATHER API DELAYED") {
       setAnomalyOverride("WEATHER_API_DELAY");
-      setNotice("Scenario 5 Loaded: Weather API delayed; confidence dropped to 72% with data staleness flags.");
     } else if (name === "LOW BATTERY & DEGRADED") {
       setAnomalyOverride("LOW_BATT");
-      setNotice("Scenario 6 Loaded: ESP32 battery voltage dropped to 3.12V (Hardware warning).");
     } else if (name === "CRITICAL ESCALATION (OPERATOR APPROVAL)") {
       setZones(prev => prev.map(z => z.id === selected ? { ...z, rainfall: 33.2, soil: 94.0, tilt: 0.135, score: 88, tier: "CRITICAL" } : z));
       setOperatorApprovalModal(true);
-      triggerCriticalAlert({
-        nodeId: selected,
-        zoneName: zone.name,
-        state: zone.region,
-        riskScore: 88,
-        riskLevel: "CRITICAL",
-        rainfall: 33.2,
-        soilMoisture: 94.0,
-        tiltDegrees: 0.135,
-        triggerReason: `Critical slope failure threshold reached: Soil saturation 94.0% & Tilt 0.135° on ${zone.name}`,
-        thresholdExceeded: "NDMA Priority 1 Evacuation Alert",
-      });
-      setNotice("Scenario 7 Loaded: Critical state requires Operator Authorization before mock dispatch.");
     }
   };
-
-  // Continuous Telemetry Watcher: Triggers toast whenever any sensor node reports a CRITICAL risk level
-  useEffect(() => {
-    zones.forEach((z) => {
-      if (z.tier === "CRITICAL" || z.score >= 82) {
-        triggerCriticalAlert({
-          nodeId: z.id,
-          zoneName: z.name,
-          state: z.region,
-          riskScore: z.score,
-          riskLevel: "CRITICAL",
-          rainfall: z.rainfall,
-          soilMoisture: z.soil,
-          tiltDegrees: z.tilt,
-          triggerReason: `Critical landslide threshold: Rain ${z.rainfall}mm, Soil ${z.soil}%, Tilt ${z.tilt}° at ${z.name}`,
-          thresholdExceeded: `Score ${z.score}% · CRITICAL`,
-        });
-      }
-    });
-  }, [zones, triggerCriticalAlert]);
 
   useEffect(() => {
     timer.current = window.setInterval(() => {
@@ -769,44 +728,44 @@ export default function DashboardPage() {
     setNotice("Telemetry CSV exported successfully.");
   };
 
-  // Export NDMA Incident Dossier
+  // Export Incident Summary Report
   const exportIncidentDossier = () => {
-    const dossierText = `# LANDSORA INCIDENT COMMAND DOSSIER (NDMA / SDMA COMPLIANT)
+    const dossierText = `# LANDSORA GEOTECHNICAL HAZARD REPORT
 Generated: ${new Date().toISOString()}
-Location Node: ${zone.name} (${zone.id}) — ${zone.region} [${zone.coords}]
-Operational Authority: District Disaster Management Authority
+Monitored Station: ${zone.name} (${zone.id}) — ${zone.region} [${zone.coords}]
 
 --------------------------------------------------------------------------------
-1. EXECUTIVE RISK STATUS
-- Deterministic Risk Score: ${prototypeRiskScore} / 100 [${prototypeRiskLevel}]
+1. GEOTECHNICAL RISK ASSESSMENT
+- Real-Time Risk Score: ${prototypeRiskScore} / 100 [${prototypeRiskLevel}]
 - Data Confidence Score: ${validationResult.overallConfidence}% (${validationResult.status})
 - Active Response Priority: ${responsePriority}
 - Estimated Population Exposure: ${exposure.toLocaleString()} residents
 - Affected Road Corridors: ${roadRows.filter(r => r.status !== "OPEN").map(r => `${r.name} (${r.status})`).join(", ") || "None"}
 
 --------------------------------------------------------------------------------
-2. IOT SENSOR TELEMETRY & VALIDATION
+2. IOT SENSOR TELEMETRY
 - Rainfall Intensity: ${zone.rainfall} mm/hr (Tipping Bucket)
 - Soil Moisture Saturation: ${zone.soil}% (Capacitive Probe)
 - Slope Tilt Rate: ${zone.tilt} °/hr (MPU6050 Inclinometer)
 - Validation Status: ${validationResult.status} (Quarantined: ${validationResult.isQuarantined ? "YES" : "NO"})
 - Battery / Device Health: ${zone.batteryVoltage}V / RSSI ${zone.wifiRssi} dBm
+
 --------------------------------------------------------------------------------
-3. AI RISK EXPLANATION & DIRECTIVES
+3. AI COMPANION RISK EXPLANATION
 ${aiAnalysisMutation.data?.assessment ?? "Assessment pending live generation."}
 
-Official Disclaimer: Landsora is an IoT decision-support prototype. Directives must be coordinated with local police and SDMA emergency protocols.
+Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
 `;
 
     const blob = new Blob([dossierText], { type: "text/markdown;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Landsora_NDMA_Dossier_${zone.id}_${Date.now()}.md`);
+    link.setAttribute("download", `Landsora_Incident_Summary_${zone.id}_${Date.now()}.md`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setNotice("Official Incident Dossier (.md) generated and downloaded.");
+    setNotice("Incident Summary Report (.md) generated and downloaded.");
   };
 
   return (
@@ -909,7 +868,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
           {/* Left: 7-Scenario Simulation Switchers */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] font-mono font-bold text-amber-400 flex items-center gap-1 mr-1">
-              <Sliders size={12} /> SCENARIOS:
+              <Sliders size={12} /> {t("SCENARIOS:")}
             </span>
             {[
               { id: "NORMAL CONDITIONS", label: "01 NORMAL" },
@@ -918,7 +877,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
               { id: "BAD SENSOR DATA (TILT SPIKE)", label: "04 TILT QUARANTINE" },
               { id: "WEATHER API DELAYED", label: "05 API DELAY" },
               { id: "LOW BATTERY & DEGRADED", label: "06 LOW BATTERY" },
-              { id: "CRITICAL ESCALATION (OPERATOR APPROVAL)", label: "07 ESCALATION" },
+              { id: "CRITICAL ESCALATION (OPERATOR APPROVAL)", label: "07 HAZARD ALERT" },
             ].map((sc) => (
               <button
                 key={sc.id}
@@ -930,7 +889,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
                 }`}
                 onClick={() => setDemoScenario(sc.id)}
               >
-                {sc.label}
+                {t(sc.label)}
               </button>
             ))}
           </div>
@@ -938,7 +897,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
           {/* Right: Telemetry Confidence & Quick Emergency Actions */}
           <div className="flex items-center gap-1.5 flex-wrap ml-auto">
             <span className="confidence-pill py-1 px-2 text-[10px]" style={{ borderColor: validationResult.overallConfidence > 80 ? "#6FA377" : validationResult.overallConfidence > 50 ? "#D6A24E" : "#C24B3F" }}>
-              <CheckCircle2 size={11} /> <b>{validationResult.overallConfidence}%</b> CONFIDENCE
+              <CheckCircle2 size={11} /> <b>{validationResult.overallConfidence}%</b> {t("CONFIDENCE")}
             </span>
 
             {notificationPermission !== "granted" ? (
@@ -949,7 +908,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
                 title="Enable browser push notifications"
               >
                 <Bell size={11} className="text-amber-400" />
-                <span>ENABLE PUSH</span>
+                <span>{t("ENABLE PUSH")}</span>
               </button>
             ) : (
               <button
@@ -959,7 +918,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
                 title="Dispatch Test Desktop Alert"
               >
                 <Bell size={11} className="text-emerald-400" />
-                <span>TEST ALERT</span>
+                <span>{t("TEST ALERT")}</span>
               </button>
             )}
 
@@ -989,7 +948,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
               className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors shadow-sm"
               onClick={exportIncidentDossier}
             >
-              <FileText size={11} /> NDMA DOSSIER
+              <FileText size={11} /> {t("INCIDENT REPORT")}
             </button>
           </div>
         </div>
@@ -999,7 +958,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
           {/* Left Column: Zone Monitor List */}
           <aside className="zone-monitor panel lg:col-span-3 xl:col-span-3 flex flex-col h-full">
             <div className="panel-title">
-              <span>ZONE MONITOR / SENSOR STATE</span>
+              <span>{t("ZONE MONITOR / SENSOR STATE")}</span>
               <span className="mono">{zones.length.toString().padStart(2, '0')} / {zones.length.toString().padStart(2, '0')}</span>
             </div>
             <div className="zone-list">
@@ -1025,17 +984,17 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
                   </div>
                   <div className="zone-spark-col">
                     <TinySpark values={z.history} color={statusColor(z.tier)} />
-                    <span>RISK TRACE</span>
+                    <span>{t("RISK TRACE")}</span>
                   </div>
                 </button>
               ))}
             </div>
             <div className="network">
-              <div className="panel-title">SENSOR NETWORK <span className="online-mini"><i /> NOMINAL</span></div>
-              <div className="network-big">12 / 12 <span>CHANNELS ONLINE</span></div>
-              <div className="network-row"><span>DATA LINK</span><b>{demoMode ? "SIMULATED" : liveAvailable ? "NASA EONET" : "FALLBACK"}</b></div>
-              <div className="network-row"><span>MQTT LATENCY</span><b>1.8 SEC</b></div>
-              <div className="network-row"><span>NODE BATTERY</span><b>{zone.batteryVoltage}V ({Math.round(((zone.batteryVoltage - 3.2) / 1.0) * 100)}%)</b></div>
+              <div className="panel-title">{t("SENSOR NETWORK")} <span className="online-mini"><i /> NOMINAL</span></div>
+              <div className="network-big">12 / 12 <span>{t("CHANNELS ONLINE")}</span></div>
+              <div className="network-row"><span>{t("DATA LINK")}</span><b>{demoMode ? "SIMULATED" : liveAvailable ? "NASA EONET" : "FALLBACK"}</b></div>
+              <div className="network-row"><span>{t("MQTT LATENCY")}</span><b>1.8 SEC</b></div>
+              <div className="network-row"><span>{t("NODE BATTERY")}</span><b>{zone.batteryVoltage}V ({Math.round(((zone.batteryVoltage - 3.2) / 1.0) * 100)}%)</b></div>
             </div>
           </aside>
 
@@ -1060,29 +1019,29 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
           {/* Right Column: Zone Intelligence & Gauges */}
           <aside className="intelligence panel lg:col-span-3 xl:col-span-3 2xl:col-span-3 flex flex-col h-full">
             <div className="panel-title">
-              <span>ZONE INTELLIGENCE</span>
+              <span>{t("ZONE INTELLIGENCE")}</span>
               <span className="mono">{zone.id}</span>
             </div>
             <div className="selected-zone">
-              <span>SELECTED NODE</span>
+              <span>{t("SELECTED NODE")}</span>
               <h3>{zone.name}</h3>
               <p>{zone.region} · {zone.coords}</p>
             </div>
             <div className="live-analysis">
               <div className="live-analysis-title">
-                <span>LOCATION TELEMETRY STATUS</span>
+                <span>{t("LOCATION TELEMETRY STATUS")}</span>
                 <strong>{validationResult.status}</strong>
               </div>
               <div className="analysis-grid">
                 <span>LAT / LONG<b>{analysisPoint.latitude.toFixed(4)}, {analysisPoint.longitude.toFixed(4)}</b></span>
-                <span>DATA CONFIDENCE<b style={{ color: validationResult.overallConfidence > 80 ? "#6FA377" : "#D6A24E" }}>{validationResult.overallConfidence}%</b></span>
-                <span>NEAREST REPORTED EVENT<b>{nearestEvent.event ? `${nearestEvent.distance.toFixed(0)} km` : "—"}</b></span>
-                <span>PROTOTYPE RISK SCORE<b style={{ color: prototypeRiskColor }}>{prototypeRiskScore} / 100</b></span>
+                <span>{t("DATA CONFIDENCE")}<b style={{ color: validationResult.overallConfidence > 80 ? "#6FA377" : "#D6A24E" }}>{validationResult.overallConfidence}%</b></span>
+                <span>{t("NEAREST REPORTED EVENT")}<b>{nearestEvent.event ? `${nearestEvent.distance.toFixed(0)} km` : "—"}</b></span>
+                <span>{t("LANDSORA RISK SCORE")}<b style={{ color: prototypeRiskColor }}>{prototypeRiskScore} / 100</b></span>
               </div>
             </div>
             <div className="risk-block">
               <div className="risk-label">
-                <span>LANDSORA RISK SCORE</span>
+                <span>{t("LANDSORA RISK SCORE")}</span>
                 <span style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</span>
               </div>
               <div className="gauge">
@@ -1094,20 +1053,22 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
               <div className="advisory" style={{ borderColor: prototypeRiskColor }}>
                 <span>ADVISORY / {prototypeRiskLevel}</span>
                 <p>
-                  {prototypeRiskLevel === "LOW"
-                    ? "Slope conditions remain within seasonal stability margins."
-                    : prototypeRiskLevel === "MODERATE"
-                    ? "Moisture approaching plastic saturation limit. Maintain continuous monitoring."
-                    : prototypeRiskLevel === "HIGH"
-                    ? "Elevated pore pressure detected. Review mountain road corridors."
-                    : "Critical slope failure risk. Authority assessment and response procedures should be initiated."}
+                  {t(
+                    prototypeRiskLevel === "LOW"
+                      ? "Slope conditions remain within seasonal stability margins."
+                      : prototypeRiskLevel === "MODERATE"
+                      ? "Moisture approaching plastic saturation limit. Maintain continuous monitoring."
+                      : prototypeRiskLevel === "HIGH"
+                      ? "Elevated pore pressure detected. Review mountain road corridors."
+                      : "Critical slope failure risk. Authority assessment and response procedures should be initiated."
+                  )}
                 </p>
               </div>
             </div>
             <div className="metric-grid">
-              <Metric icon={<CloudRain size={15} />} label="RAINFALL" value={zone.rainfall.toFixed(1)} unit="mm/hr" prev={zone.rainfall - 0.4} color="#84A6A0" />
-              <Metric icon={<Waves size={15} />} label="SOIL MOISTURE" value={zone.soil.toFixed(1)} unit="%" prev={zone.soil - 0.6} color="#D6A24E" />
-              <Metric icon={<Wind size={15} />} label="SLOPE TILT" value={zone.tilt.toFixed(3)} unit="°/hr" prev={zone.tilt - 0.002} color="#C28A70" />
+              <Metric icon={<CloudRain size={15} />} label={t("RAINFALL")} value={zone.rainfall.toFixed(1)} unit="mm/hr" prev={zone.rainfall - 0.4} color="#84A6A0" />
+              <Metric icon={<Waves size={15} />} label={t("SOIL MOISTURE")} value={zone.soil.toFixed(1)} unit="%" prev={zone.soil - 0.6} color="#D6A24E" />
+              <Metric icon={<Wind size={15} />} label={t("SLOPE TILT")} value={zone.tilt.toFixed(3)} unit="°/hr" prev={zone.tilt - 0.002} color="#C28A70" />
             </div>
           </aside>
         </div>
@@ -1116,7 +1077,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 xl:gap-6 items-start mt-6">
           <div className="chart-panel panel md:col-span-2 lg:col-span-5">
             <div className="panel-title">
-              <span>RISK SCORE — LAST 16 READINGS</span>
+              <span>{t("RISK SCORE — LAST 16 READINGS")}</span>
               <span className="trend"><ArrowUpRight size={14} /> TREND {delta(prototypeRiskScore, zone.history[zone.history.length - 2])}</span>
             </div>
             <TrendChart values={zone.history} tier={prototypeTier} />
@@ -1130,8 +1091,8 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
 
           <div className="explain panel md:col-span-1 lg:col-span-4">
             <div className="panel-title">
-              <span>WHY THIS SCORE?</span>
-              <span className="mono">DETERMINISTIC 4-FACTOR BREAKDOWN</span>
+              <span>{t("WHY THIS SCORE?")}</span>
+              <span className="mono">{t("DETERMINISTIC 4-FACTOR BREAKDOWN")}</span>
             </div>
             <p>Risk is <b style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</b> calculated via auditable formula without black-box AI:</p>
             <div className="contributions">
@@ -1142,7 +1103,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
                 ["REGIONAL EVENT CONTEXT", riskInputs.recentEventScore, "#C24B3F"]
               ].map(([label, val, color]) => (
                 <div className="contrib" key={label as string}>
-                  <span>{label as string}<b>{Math.round((val as number) / 4)} / 100</b></span>
+                  <span>{t(label as string)}<b>{Math.round((val as number) / 4)} / 100</b></span>
                   <i><em style={{ width: `${val as number}%`, background: color as string }} /></i>
                 </div>
               ))}
@@ -1151,11 +1112,11 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
 
           <div className="history panel md:col-span-1 lg:col-span-3">
             <div className="panel-title">
-              <span>SENSOR HISTORY LOG</span>
-              <span className="mono">LAST 5 READINGS</span>
+              <span>{t("SENSOR HISTORY LOG")}</span>
+              <span className="mono">{t("LAST 5 READINGS")}</span>
             </div>
             <div className="history-head">
-              <span>TIME</span><span>RAIN</span><span>MOISTURE</span><span>TILT</span>
+              <span>TIME</span><span>{t("RAINFALL")}</span><span>{t("SOIL MOISTURE")}</span><span>{t("SLOPE TILT")}</span>
             </div>
             {zone.history.slice(-5).reverse().map((v, i) => (
               <div className="history-row" key={`${v}-${i}`}>
@@ -1214,7 +1175,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
                 {/* AI Risk Intelligence */}
                 <div className={`ai-risk-card panel md:col-span-2 lg:col-span-12 xl:col-span-8 min-h-[380px] relative ${aiAnalysisMutation.isPending ? "is-synthesizing" : ""}`}>
                   <div className="panel-title">
-                    <span><Activity size={14} /> AI RISK INTELLIGENCE</span>
+                    <span><Activity size={14} /> {t("AI RISK INTELLIGENCE")}</span>
                     <span className="mono">
                       {aiAnalysisMutation.isPending ? (
                         <span className="ai-pulse-chip flex items-center gap-2">
@@ -1279,7 +1240,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
                 {/* Contextual AI Assistant with 4 Preset Roadmap Questions */}
                 <div className="copilot-card panel md:col-span-2 lg:col-span-12 xl:col-span-4 min-h-[380px] flex flex-col">
                   <div className="panel-title">
-                    <span className="flex items-center gap-1.5"><Sparkles size={14} className="text-amber-400" /> AI COMPANION</span>
+                    <span className="flex items-center gap-1.5"><Sparkles size={14} className="text-amber-400" /> {t("AI COMPANION")}</span>
                     <span className="mono">{assistantMutation.isPending ? "THINKING…" : "READY"}</span>
                   </div>
                   <div className="assistant-box flex-1 flex flex-col">
@@ -1338,7 +1299,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
             {/* Executive Situation Summary */}
             <div className="impact-card panel md:col-span-1 lg:col-span-6 xl:col-span-4">
               <div className="panel-title">
-                <span><Users size={14} /> EXECUTIVE SITUATION SUMMARY</span>
+                <span><Users size={14} /> {t("EXECUTIVE SITUATION SUMMARY")}</span>
                 <span className="mono">{responsePriority}</span>
               </div>
               <div className="impact-metrics">
@@ -1358,7 +1319,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
             {/* Road Corridor Connectivity */}
             <div className="road-card panel md:col-span-1 lg:col-span-6 xl:col-span-4">
               <div className="panel-title">
-                <span><Route size={14} /> ROAD CONNECTIVITY INTELLIGENCE</span>
+                <span><Route size={14} /> {t("ROAD CONNECTIVITY INTELLIGENCE")}</span>
                 <span className="mono">PROTOTYPE</span>
               </div>
               <p className="module-intro">Smart road status inferred from the prototype risk surface.</p>
@@ -1377,7 +1338,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
             {/* Weather-Linked Forecast */}
             <div className="forecast-card panel md:col-span-1 lg:col-span-6 xl:col-span-4">
               <div className="panel-title">
-                <span><CloudRain size={14} /> WEATHER-LINKED RISK FORECAST</span>
+                <span><CloudRain size={14} /> {t("WEATHER-LINKED RISK FORECAST")}</span>
                 <span className="mono">PROTOTYPE</span>
               </div>
               <div className="forecast-list">
@@ -1395,7 +1356,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
             {/* Citizen & Field Reporting */}
             <div className="report-card panel md:col-span-1 lg:col-span-6 xl:col-span-6">
               <div className="panel-title">
-                <span><Upload size={14} /> CITIZEN / FIELD REPORTING</span>
+                <span><Upload size={14} /> {t("CITIZEN / FIELD REPORTING")}</span>
                 <span className="mono">{reportSaved ? "QUEUED" : "READY"}</span>
               </div>
               {reportSaved ? (
@@ -1580,14 +1541,14 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
         </div>
       )}
 
-      {/* Operator Approval & Mock Notification Delivery Modal */}
+      {/* Emergency Hazard Alert Broadcast Simulation Modal */}
       {operatorApprovalModal && (
         <div className="modal-overlay" onClick={() => setOperatorApprovalModal(false)}>
           <div className="modal-content panel" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">
-                <ShieldAlert size={16} className="text-rose-400" />
-                <h3>Operator Alert Authorization Workflow</h3>
+                <AlertTriangle size={18} className="text-amber-400" />
+                <h3 className="text-sm font-bold font-mono text-stone-100">Emergency Alert Broadcast Simulator</h3>
               </div>
               <button className="modal-close" onClick={() => setOperatorApprovalModal(false)}><X size={16} /></button>
             </div>
@@ -1595,44 +1556,58 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
               <div className="operator-approval-card">
                 <div className="operator-meta-header">
                   <div>
-                    <span className="mono text-muted">TARGET NODE: {zone.name} ({zone.id})</span>
-                    <h4>CONFIRM EMERGENCY PANCHAYAT BROADCAST</h4>
+                    <span className="mono text-muted text-xs">TARGET SECTOR: {zone.name} ({zone.id})</span>
+                    <h4 className="text-sm font-bold text-stone-100 mt-1">Hazard Warning Broadcast Preview</h4>
                   </div>
-                  <span className="critical-badge">RISK: {prototypeRiskScore}/100</span>
+                  <span className="critical-badge font-mono font-bold">RISK: {prototypeRiskScore}/100</span>
                 </div>
 
-                <div className="operator-form-fields">
-                  <label>
-                    <span>AUTHORIZING OFFICER</span>
-                    <input type="text" value="Officer S. Ramesh (DDMA Commander)" readOnly className="auth-input" />
+                <div className="my-2">
+                  <label className="block text-[10.5px] font-mono text-stone-400 uppercase mb-1">
+                    Alert Broadcast Dialect
                   </label>
-                  <label>
-                    <span>ALERT LANGUAGE</span>
-                    <select value={language} onChange={e => changeLanguage(e.target.value)} className="auth-input">
-                      {notificationLanguages.map(item => (
-                        <option value={item.code} key={item.code}>{item.label} ({item.nativeLabel})</option>
-                      ))}
-                    </select>
-                  </label>
+                  <select
+                    value={language}
+                    onChange={e => changeLanguage(e.target.value)}
+                    className="w-full bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-xs font-mono text-stone-100 focus:outline-none focus:border-amber-400"
+                  >
+                    {notificationLanguages.map(item => (
+                      <option value={item.code} key={item.code}>
+                        {item.label} ({item.code})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="notification-preview-box">
-                  <span className="mono text-muted">MESSAGE PREVIEW ({language.toUpperCase()}):</span>
-                  <strong>{notification.title}</strong>
-                  <p>{notification.body}</p>
+                <div className="notification-preview-box rounded-lg p-3 bg-stone-950 border border-stone-800 text-xs">
+                  <span className="mono text-amber-400 font-bold block mb-1 text-[10px]">
+                    SIMULATED NOTIFICATION PAYLOAD ({language.toUpperCase()}):
+                  </span>
+                  <strong className="block text-stone-100 text-xs font-bold mb-1">{notification.title}</strong>
+                  <p className="text-stone-300 text-xs leading-relaxed">{notification.body}</p>
                 </div>
 
                 {operatorDeliveryLogs ? (
-                  <div className="delivery-log-box">
-                    <h5 className="text-emerald-400 flex items-center gap-1"><CheckCircle2 size={14} /> MOCK BROADCAST COMPLETED</h5>
-                    <small>24 Village Panchayats & 1,420 Push Subscribers Notified via Mock Delivery Logs.</small>
+                  <div className="delivery-log-box rounded-lg p-3 bg-emerald-950/40 border border-emerald-500/40">
+                    <h5 className="text-emerald-400 font-bold flex items-center gap-1.5 text-xs">
+                      <CheckCircle2 size={14} /> SIMULATED ALERT DISPATCHED
+                    </h5>
+                    <small className="text-emerald-200/80 text-[11px] block mt-1">
+                      Dispatched to native browser HTML5 push notifications & local critical risk stream.
+                    </small>
                   </div>
                 ) : (
-                  <div className="operator-actions">
-                    <button className="button primary" onClick={handleOperatorApproval} disabled={operatorApprovalMutation.isPending}>
-                      <ShieldCheck size={14} /> {operatorApprovalMutation.isPending ? "AUTHORIZING..." : "OFFICIALLY AUTHORIZE & BROADCAST"}
+                  <div className="operator-actions flex items-center justify-end gap-2 pt-2">
+                    <button className="button secondary text-xs" onClick={() => setOperatorApprovalModal(false)}>
+                      CANCEL
                     </button>
-                    <button className="button secondary" onClick={() => setOperatorApprovalModal(false)}>CANCEL</button>
+                    <button
+                      className="button primary text-xs font-bold"
+                      onClick={handleOperatorApproval}
+                      disabled={operatorApprovalMutation.isPending}
+                    >
+                      <Send size={13} /> {operatorApprovalMutation.isPending ? "DISPATCHING..." : "SIMULATE BROADCAST ALERT"}
+                    </button>
                   </div>
                 )}
               </div>

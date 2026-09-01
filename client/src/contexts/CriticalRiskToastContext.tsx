@@ -92,26 +92,41 @@ function playEmergencyChime() {
 }
 
 // Native HTML5 Browser Desktop Notification Dispatcher
-async function sendNativeBrowserNotification(title: string, options: NotificationOptions) {
-  if (typeof window === "undefined" || !("Notification" in window)) return;
-  if (Notification.permission !== "granted") return;
+function sendNativeBrowserNotification(title: string, options: NotificationOptions = {}) {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    console.warn("Desktop notifications not supported in this environment");
+    return;
+  }
+
+  if (Notification.permission !== "granted") {
+    console.warn("Notification permission is not granted:", Notification.permission);
+    return;
+  }
 
   try {
-    if ("serviceWorker" in navigator) {
-      const reg = await navigator.serviceWorker.ready.catch(() => null);
-      if (reg && reg.showNotification) {
-        await reg.showNotification(title, options);
-        return;
-      }
-    }
+    const notifOptions: NotificationOptions = {
+      body: options.body || "Geotechnical early warning alert from Landsora.",
+      icon: options.icon || "/assets/lews-logo.png",
+      badge: options.badge || "/assets/lews-logo.png",
+      tag: options.tag || `landsora-alert-${Date.now()}`,
+      requireInteraction: options.requireInteraction ?? true,
+      silent: false,
+    };
 
-    const notif = new window.Notification(title, options);
+    const notif = new window.Notification(title, notifOptions);
     notif.onclick = () => {
       window.focus();
       notif.close();
     };
   } catch (err) {
-    console.warn("Native Notification dispatch error:", err);
+    console.warn("Standard window.Notification failed, attempting fallback:", err);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg && reg.showNotification) {
+          reg.showNotification(title, options);
+        }
+      }).catch(() => {});
+    }
   }
 }
 

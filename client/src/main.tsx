@@ -82,3 +82,14 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </trpc.Provider>
 );
+
+// Register Service Worker for Chrome Desktop & Mobile Notifications
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").then((reg) => {
+      console.log("[ServiceWorker] Registered with scope:", reg.scope);
+    }).catch((err) => {
+      console.debug("[ServiceWorker] Registration error:", err);
+    });
+  });
+}
