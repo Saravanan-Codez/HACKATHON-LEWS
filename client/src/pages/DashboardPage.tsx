@@ -11,6 +11,7 @@ import {
 } from "@/components/DashboardSkeletons";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { GoogleAuthModal } from "@/components/GoogleAuthModal";
+import { InteractiveGisMap, type GisZone, type NasaEvent } from "@/components/InteractiveGisMap";
 import { useCriticalRiskToast } from "@/contexts/CriticalRiskToastContext";
 import { getDataPresentation } from "@/lib/dataPresentation";
 
@@ -116,12 +117,18 @@ type EonetEvent = { id: string; title: string; date: string; latitude: number; l
 type RoadStatus = "OPEN" | "RESTRICTED" | "AT RISK" | "BLOCKED" | "UNKNOWN";
 
 const initialZones: Zone[] = [
-  { id: "CHK-01", name: "Chikkamagaluru", region: "Western Ghats", coords: "13.3153, 75.7754", rainfall: 12.8, soil: 57.4, tilt: 0.062, baseline: 31, sensors: 10, history: [31, 32, 32, 33, 32, 34, 35, 34, 35, 36, 35, 36], tier: "STABLE", score: 35, sensitivity: { rain: 0.9, soil: 0.85, tilt: 0.8 }, batteryVoltage: 3.96, wifiRssi: -58 },
-  { id: "KDG-03", name: "Kodagu", region: "Western Ghats", coords: "12.3375, 75.8069", rainfall: 18.4, soil: 78.2, tilt: 0.084, baseline: 42, sensors: 12, history: [52, 55, 56, 58, 57, 60, 59, 61, 62, 60, 63, 64], tier: "WATCH", score: 64, sensitivity: { rain: 1.15, soil: 1.12, tilt: 0.9 }, batteryVoltage: 3.92, wifiRssi: -62 },
-  { id: "UKA-02", name: "Uttara Kannada", region: "Western Ghats", coords: "14.7937, 74.6869", rainfall: 9.6, soil: 49.8, tilt: 0.057, baseline: 28, sensors: 9, history: [28, 29, 30, 29, 31, 30, 30, 31, 32, 31, 31, 32], tier: "STABLE", score: 32, sensitivity: { rain: 0.92, soil: 0.86, tilt: 0.82 }, batteryVoltage: 4.02, wifiRssi: -54 },
-  { id: "WYD-04", name: "Wayanad", region: "Western Ghats", coords: "11.6854, 76.1320", rainfall: 15.1, soil: 71.4, tilt: 0.068, baseline: 37, sensors: 11, history: [43, 44, 45, 44, 46, 47, 48, 47, 49, 48, 49, 50], tier: "WATCH", score: 50, sensitivity: { rain: 0.92, soil: 1.18, tilt: 0.86 }, batteryVoltage: 3.88, wifiRssi: -67 },
-  { id: "NLG-05", name: "Nilgiris", region: "Tamil Nadu", coords: "11.4102, 76.6950", rainfall: 11.2, soil: 53.6, tilt: 0.092, baseline: 39, sensors: 8, history: [41, 42, 41, 43, 44, 43, 45, 44, 46, 45, 47, 48], tier: "WATCH", score: 48, sensitivity: { rain: 0.88, soil: 0.9, tilt: 1.2 }, batteryVoltage: 3.82, wifiRssi: -71 },
-  { id: "DJE-06", name: "Darjeeling", region: "Eastern Himalayas", coords: "27.0410, 88.2663", rainfall: 13.5, soil: 61.7, tilt: 0.101, baseline: 44, sensors: 13, history: [50, 51, 52, 51, 53, 54, 53, 55, 54, 56, 55, 57], tier: "WATCH", score: 57, sensitivity: { rain: 0.9, soil: 0.94, tilt: 1.22 }, batteryVoltage: 3.90, wifiRssi: -65 },
+  { id: "KDG-03", name: "Kodagu (Coorg)", region: "Western Ghats, Karnataka", coords: "12.3375, 75.8069", rainfall: 18.4, soil: 78.2, tilt: 0.084, baseline: 42, sensors: 12, history: [52, 55, 56, 58, 57, 60, 59, 61, 62, 60, 63, 64], tier: "WATCH", score: 64, sensitivity: { rain: 1.15, soil: 1.12, tilt: 0.9 }, batteryVoltage: 3.92, wifiRssi: -62 },
+  { id: "WYD-04", name: "Wayanad Meppadi", region: "Western Ghats, Kerala", coords: "11.6854, 76.1320", rainfall: 28.6, soil: 92.4, tilt: 0.142, baseline: 48, sensors: 14, history: [68, 72, 75, 78, 80, 84, 86, 88, 90, 92, 94, 94], tier: "CRITICAL", score: 94, sensitivity: { rain: 1.25, soil: 1.28, tilt: 1.15 }, batteryVoltage: 3.84, wifiRssi: -68 },
+  { id: "IDK-01", name: "Idukki Hill Tracts", region: "Western Ghats, Kerala", coords: "9.8500, 76.9700", rainfall: 22.1, soil: 86.5, tilt: 0.118, baseline: 45, sensors: 11, history: [62, 65, 68, 70, 74, 78, 80, 82, 84, 85, 86, 86], tier: "CRITICAL", score: 86, sensitivity: { rain: 1.2, soil: 1.15, tilt: 1.1 }, batteryVoltage: 3.88, wifiRssi: -65 },
+  { id: "NLG-05", name: "Nilgiris Coonoor", region: "Tamil Nadu", coords: "11.4102, 76.6950", rainfall: 11.2, soil: 53.6, tilt: 0.092, baseline: 39, sensors: 8, history: [41, 42, 41, 43, 44, 43, 45, 44, 46, 45, 47, 48], tier: "WATCH", score: 48, sensitivity: { rain: 0.88, soil: 0.9, tilt: 1.2 }, batteryVoltage: 3.82, wifiRssi: -71 },
+  { id: "UKA-02", name: "Uttara Kannada", region: "Western Ghats, Karnataka", coords: "14.7937, 74.6869", rainfall: 19.8, soil: 81.4, tilt: 0.095, baseline: 38, sensors: 9, history: [48, 52, 56, 62, 68, 72, 75, 78, 80, 80, 81, 81], tier: "CRITICAL", score: 81, sensitivity: { rain: 1.12, soil: 1.08, tilt: 0.95 }, batteryVoltage: 4.02, wifiRssi: -54 },
+  { id: "CHK-01", name: "Chikkamagaluru", region: "Western Ghats, Karnataka", coords: "13.3153, 75.7754", rainfall: 16.2, soil: 69.8, tilt: 0.078, baseline: 36, sensors: 10, history: [44, 46, 48, 52, 55, 58, 62, 65, 66, 68, 69, 69], tier: "WATCH", score: 69, sensitivity: { rain: 1.05, soil: 0.98, tilt: 0.88 }, batteryVoltage: 3.96, wifiRssi: -58 },
+  { id: "MNR-07", name: "Munnar Gap Road", region: "Western Ghats, Kerala", coords: "10.0889, 77.0595", rainfall: 15.4, soil: 70.2, tilt: 0.082, baseline: 38, sensors: 9, history: [42, 45, 49, 54, 58, 60, 62, 65, 66, 67, 68, 68], tier: "WATCH", score: 68, sensitivity: { rain: 1.08, soil: 1.02, tilt: 0.92 }, batteryVoltage: 3.90, wifiRssi: -60 },
+  { id: "VLP-08", name: "Valparai Anamalai", region: "Tamil Nadu", coords: "10.3204, 76.9558", rainfall: 14.0, soil: 66.5, tilt: 0.074, baseline: 35, sensors: 8, history: [38, 40, 42, 45, 48, 52, 55, 58, 60, 61, 62, 62], tier: "WATCH", score: 62, sensitivity: { rain: 0.95, soil: 0.96, tilt: 0.9 }, batteryVoltage: 3.94, wifiRssi: -64 },
+  { id: "MHD-09", name: "Mahad Varandha Ghat", region: "Western Ghats, Maharashtra", coords: "18.0667, 73.6167", rainfall: 21.4, soil: 77.5, tilt: 0.098, baseline: 41, sensors: 10, history: [50, 54, 58, 64, 68, 71, 73, 75, 75, 76, 76, 76], tier: "CRITICAL", score: 76, sensitivity: { rain: 1.18, soil: 1.1, tilt: 1.05 }, batteryVoltage: 3.86, wifiRssi: -66 },
+  { id: "SHM-10", name: "Shimla Bypass Ridge", region: "Himalayas, Himachal Pradesh", coords: "31.1048, 77.1734", rainfall: 6.4, soil: 38.2, tilt: 0.035, baseline: 24, sensors: 7, history: [22, 24, 25, 26, 25, 27, 28, 27, 28, 28, 28, 28], tier: "STABLE", score: 28, sensitivity: { rain: 0.85, soil: 0.82, tilt: 0.9 }, batteryVoltage: 4.10, wifiRssi: -52 },
+  { id: "CHM-11", name: "Chamoli Joshimath", region: "Himalayas, Uttarakhand", coords: "30.5500, 79.5667", rainfall: 12.5, soil: 54.0, tilt: 0.088, baseline: 36, sensors: 11, history: [36, 38, 40, 42, 45, 47, 50, 52, 53, 54, 54, 54], tier: "WATCH", score: 54, sensitivity: { rain: 0.95, soil: 0.92, tilt: 1.15 }, batteryVoltage: 3.92, wifiRssi: -69 },
+  { id: "DJE-06", name: "Darjeeling Kurseong", region: "Eastern Himalayas, West Bengal", coords: "27.0410, 88.2663", rainfall: 19.5, soil: 76.8, tilt: 0.108, baseline: 44, sensors: 13, history: [54, 58, 62, 66, 70, 72, 73, 74, 74, 75, 75, 75], tier: "CRITICAL", score: 75, sensitivity: { rain: 1.14, soil: 1.06, tilt: 1.2 }, batteryVoltage: 3.88, wifiRssi: -63 },
 ];
 
 const formatTimestamp = (ts?: string) => {
@@ -232,6 +239,8 @@ export default function DashboardPage() {
     alertHistory,
     isMuted,
     toggleMute,
+    notificationPermission,
+    requestNotificationPermission,
   } = useCriticalRiskToast();
 
   // Gemini AI Suite & Google Auth State
@@ -336,6 +345,29 @@ export default function DashboardPage() {
   const prototypeTier: Tier = prototypeRiskLevel === "CRITICAL" || prototypeRiskLevel === "HIGH" ? "CRITICAL" : prototypeRiskLevel === "MODERATE" ? "WATCH" : "STABLE";
   const dataView = getDataPresentation({ demoMode, available: liveAvailable, queryError: Boolean(liveQuery.error), eventCount: liveEvents.length });
   const exposure = prototypeRiskScore >= 76 ? 2400 : prototypeRiskScore >= 51 ? 1100 : 420;
+
+  const gisZones: GisZone[] = useMemo(() => {
+    return zones.map((z) => {
+      const [latStr, lngStr] = z.coords.split(",").map((s) => s.trim());
+      const lat = parseFloat(latStr) || 12.3375;
+      const lng = parseFloat(lngStr) || 75.8069;
+      return {
+        id: z.id,
+        name: z.name,
+        region: z.region,
+        coords: z.coords,
+        lat,
+        lng,
+        rainfall: z.rainfall,
+        soil: z.soil,
+        tilt: z.tilt,
+        riskScore: z.score,
+        tier: z.tier,
+        elevation: "1,250m MSL",
+        geology: "Laterite & Weathered Regolith",
+      };
+    });
+  }, [zones]);
   const roadStatus = (threshold: number): RoadStatus => prototypeRiskScore >= threshold ? (prototypeRiskScore >= 86 ? "BLOCKED" : "AT RISK") : prototypeRiskScore >= 45 ? "RESTRICTED" : "OPEN";
   const roadRows = [
     { name: "NH 10 / Teesta Corridor", status: roadStatus(58), distance: "1.2 km", villages: 3, confidence: prototypeRiskScore >= 76 ? "MEDIUM" : "LOW" },
@@ -570,16 +602,21 @@ export default function DashboardPage() {
   };
 
   const [autoDetectLanguage, setAutoDetectLanguage] = useState(true);
+  const isInitialMount = useRef(true);
 
   // Auto-switch language based on focused zone region if autoDetect is active
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     if (autoDetectLanguage) {
       const autoLang = detectLanguageForZone(selected);
       if (autoLang !== language) {
         setLanguage(autoLang);
         saveNotificationLanguage(autoLang);
         const meta = notificationLanguages.find(l => l.code === autoLang);
-        setNotice(`📍 Region Detected: ${zone.name} (${zone.region}). Automatically switched language to ${meta?.label} (${meta?.nativeLabel}).`);
+        setNotice(`📍 Region Detected: ${zone.name} (${zone.region}) → Language set to ${meta?.label} (${meta?.nativeLabel})`);
       }
     }
   }, [selected, autoDetectLanguage]);
@@ -818,15 +855,14 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
             {networkState === "ONLINE" ? <Wifi size={13} /> : <WifiOff size={13} />} {networkState}
           </button>
 
-          {/* Dedicated Gemini AI Assistant Page Navigation Link */}
+          {/* Dedicated AI Companion Navigation Link */}
           <Link
             href="/ai-chatbot"
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-[11px] font-bold text-amber-300 transition-all shadow-sm"
-            title="Open Dedicated Gemini AI Copilot & Grounding Workspace"
+            title="Open Dedicated AI Companion"
           >
-            <Bot size={13} className="text-amber-400" />
-            <span>AI COPILOT</span>
-            <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/30 text-amber-200">NEW</span>
+            <Sparkles size={13} className="text-amber-400" />
+            <span>AI COMPANION</span>
           </Link>
 
           {/* Google Account Authentication Status & Connect Button */}
@@ -866,80 +902,105 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
         </div>
       </header>
 
-      {/* Main Operational Container */}
-      <main className="dashboard-main-area max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Data Status & Confidence Bar */}
-        <div className="data-status-bar landsora-status-bar">
-          <div className="status-bar-left">
-            <span className="data-status-label">{dataView.tone.toUpperCase()}</span>
-            <strong>{dataView.source}</strong>
-            <span className="confidence-pill" style={{ borderColor: validationResult.overallConfidence > 80 ? "#6FA377" : validationResult.overallConfidence > 50 ? "#D6A24E" : "#C24B3F" }}>
-              <CheckCircle2 size={12} /> CONFIDENCE: <b>{validationResult.overallConfidence}%</b> ({validationResult.status})
+      {/* Main Operational Container - Widescreen Expansive Layout */}
+      <main className="dashboard-main-area w-full max-w-[1920px] mx-auto px-3 sm:px-5 lg:px-6 py-4">
+        {/* Unified Operations Status & Scenario Sandbox Ribbon */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 sm:p-3 bg-[#131D20] border border-stone-800 rounded-xl mb-4 shadow-lg">
+          {/* Left: 7-Scenario Simulation Switchers */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-mono font-bold text-amber-400 flex items-center gap-1 mr-1">
+              <Sliders size={12} /> SCENARIOS:
             </span>
+            {[
+              { id: "NORMAL CONDITIONS", label: "01 NORMAL" },
+              { id: "PERSISTENT HEAVY RAIN", label: "02 HEAVY RAIN" },
+              { id: "EXTREME STORM & TILT", label: "03 EXTREME STORM" },
+              { id: "BAD SENSOR DATA (TILT SPIKE)", label: "04 TILT QUARANTINE" },
+              { id: "WEATHER API DELAYED", label: "05 API DELAY" },
+              { id: "LOW BATTERY & DEGRADED", label: "06 LOW BATTERY" },
+              { id: "CRITICAL ESCALATION (OPERATOR APPROVAL)", label: "07 ESCALATION" },
+            ].map((sc) => (
+              <button
+                key={sc.id}
+                type="button"
+                className={`px-2 py-1 rounded text-[10px] font-mono font-semibold transition-all ${
+                  scenario === sc.id
+                    ? "bg-amber-500 text-stone-950 font-bold shadow-md shadow-amber-500/20"
+                    : "bg-stone-900/90 text-stone-300 hover:text-white hover:bg-stone-800 border border-stone-800"
+                }`}
+                onClick={() => setDemoScenario(sc.id)}
+              >
+                {sc.label}
+              </button>
+            ))}
           </div>
 
-          <div className="status-bar-right">
+          {/* Right: Telemetry Confidence & Quick Emergency Actions */}
+          <div className="flex items-center gap-1.5 flex-wrap ml-auto">
+            <span className="confidence-pill py-1 px-2 text-[10px]" style={{ borderColor: validationResult.overallConfidence > 80 ? "#6FA377" : validationResult.overallConfidence > 50 ? "#D6A24E" : "#C24B3F" }}>
+              <CheckCircle2 size={11} /> <b>{validationResult.overallConfidence}%</b> CONFIDENCE
+            </span>
+
+            {notificationPermission !== "granted" ? (
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 animate-pulse"
+                onClick={() => requestNotificationPermission()}
+                title="Enable browser push notifications"
+              >
+                <Bell size={11} className="text-amber-400" />
+                <span>ENABLE PUSH</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-mono font-semibold bg-emerald-950/40 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-900/40"
+                onClick={() => simulateCriticalAlert({ nodeId: zone.id, zoneName: zone.name, state: zone.region })}
+                title="Dispatch Test Desktop Alert"
+              >
+                <Bell size={11} className="text-emerald-400" />
+                <span>TEST ALERT</span>
+              </button>
+            )}
+
             <button
-              className="quick-tool-btn border-red-500/40 text-red-300 bg-red-950/30 hover:bg-red-950/60"
-              onClick={() => simulateCriticalAlert({ nodeId: zone.id, zoneName: zone.name, state: zone.region })}
-              title="Test the Critical Landslide Risk Toast Notification system with live sensor telemetry"
+              type="button"
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 transition-colors"
+              onClick={() => setDeviceHealthOpen(true)}
             >
-              <AlertTriangle size={12} className="text-red-400" />
-              <span>TEST CRITICAL TOAST</span>
+              <Cpu size={11} className="text-stone-400" /> ESP32 ({zones.length})
             </button>
-            <button className="quick-tool-btn" onClick={() => setDeviceHealthOpen(true)}>
-              <Cpu size={12} /> ESP32 HEALTH
+            <button
+              type="button"
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 transition-colors"
+              onClick={() => setQuarantineOpen(true)}
+            >
+              <AlertOctagon size={11} className="text-stone-400" /> QUARANTINE ({getStoredQuarantine().length})
             </button>
-            <button className="quick-tool-btn" onClick={() => setQuarantineOpen(true)}>
-              <AlertOctagon size={12} /> QUARANTINE ({getStoredQuarantine().length})
+            <button
+              type="button"
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 transition-colors"
+              onClick={exportTelemetryCsv}
+            >
+              <FileSpreadsheet size={11} className="text-stone-400" /> CSV
             </button>
-            <button className="quick-tool-btn" onClick={exportTelemetryCsv}>
-              <FileSpreadsheet size={12} /> EXPORT CSV
-            </button>
-            <button className="quick-tool-btn highlight-btn" onClick={exportIncidentDossier}>
-              <FileText size={12} /> NDMA DOSSIER
-            </button>
-          </div>
-        </div>
-
-        {/* 7-Scenario Simulation Ribbon */}
-        <div className="scenario-ribbon panel">
-          <div className="scenario-ribbon-head">
-            <span><Sliders size={13} /> 7-SCENARIO SIMULATION SANDBOX</span>
-            <small className="mono">ACTIVE: {scenario}</small>
-          </div>
-          <div className="scenario-btn-group">
-            <button className={scenario === "NORMAL CONDITIONS" ? "active" : ""} onClick={() => setDemoScenario("NORMAL CONDITIONS")}>
-              01 NORMAL
-            </button>
-            <button className={scenario === "PERSISTENT HEAVY RAIN" ? "active" : ""} onClick={() => setDemoScenario("PERSISTENT HEAVY RAIN")}>
-              02 PERSISTENT RAIN
-            </button>
-            <button className={scenario === "EXTREME STORM & TILT" ? "active" : ""} onClick={() => setDemoScenario("EXTREME STORM & TILT")}>
-              03 EXTREME STORM
-            </button>
-            <button className={scenario === "BAD SENSOR DATA (TILT SPIKE)" ? "active" : ""} onClick={() => setDemoScenario("BAD SENSOR DATA (TILT SPIKE)")}>
-              04 TILT SPIKE QUARANTINE
-            </button>
-            <button className={scenario === "WEATHER API DELAYED" ? "active" : ""} onClick={() => setDemoScenario("WEATHER API DELAYED")}>
-              05 WEATHER API DELAY
-            </button>
-            <button className={scenario === "LOW BATTERY & DEGRADED" ? "active" : ""} onClick={() => setDemoScenario("LOW BATTERY & DEGRADED")}>
-              06 LOW BATTERY
-            </button>
-            <button className={scenario === "CRITICAL ESCALATION (OPERATOR APPROVAL)" ? "active" : ""} onClick={() => setDemoScenario("CRITICAL ESCALATION (OPERATOR APPROVAL)")}>
-              07 OPERATOR APPROVAL
+            <button
+              type="button"
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors shadow-sm"
+              onClick={exportIncidentDossier}
+            >
+              <FileText size={11} /> NDMA DOSSIER
             </button>
           </div>
         </div>
 
-        {/* Primary Operational Grid - Responsive & Balanced Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 xl:gap-6 items-start">
+        {/* Primary Operational Grid - Expansive 3-Column Command Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-5 items-start">
           {/* Left Column: Zone Monitor List */}
-          <aside className="zone-monitor panel lg:col-span-4 xl:col-span-3 flex flex-col">
+          <aside className="zone-monitor panel lg:col-span-3 xl:col-span-3 flex flex-col h-full">
             <div className="panel-title">
               <span>ZONE MONITOR / SENSOR STATE</span>
-              <span className="mono">06 / 06</span>
+              <span className="mono">{zones.length.toString().padStart(2, '0')} / {zones.length.toString().padStart(2, '0')}</span>
             </div>
             <div className="zone-list">
               {zones.map(z => (
@@ -978,108 +1039,26 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
             </div>
           </aside>
 
-          {/* Center Column: Terrain GIS Map */}
-          <div id="map-panel" className="map-panel panel lg:col-span-8 xl:col-span-6 flex flex-col">
-            <div className="map-head">
-              <div>
-                <span className="panel-kicker">LIVE MAP / TERRAIN LAYER</span>
-                <h3>Monitored slope nodes & NASA feeds</h3>
-              </div>
-              <div className="map-head-actions">
-                <span className="map-mode"><Layers3 size={14} /> {dataView.label}</span>
-              </div>
-            </div>
-            <div className="map-canvas relative" onClick={handleMapClick}>
-              <img src={assetUrl("lews-contour-texture.png")} alt="Topographic contour texture" />
-              <div className="map-grid" />
-              <svg className="map-contour-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M-5 32 C 12 14, 26 54, 42 31 S 74 8, 105 26" />
-                <path d="M-10 44 C 9 29, 21 65, 43 43 S 77 21, 110 38" />
-                <path d="M-8 58 C 13 40, 26 79, 51 57 S 80 34, 108 52" />
-                <path d="M-6 72 C 16 54, 33 91, 57 70 S 84 51, 109 66" />
-                <path d="M-3 85 C 20 69, 37 103, 64 83 S 88 67, 108 80" />
-              </svg>
-              <div className="map-data-ribbon">
-                <span>FIELD TILE / 13N—75E</span>
-                <span>GRID / 20M</span>
-                <span>LIVE NODES / 06</span>
-              </div>
-              <div className="map-coord map-coord-n">13° 18′ N</div>
-              <div className="map-coord map-coord-e">75° 48′ E</div>
-              <div className="map-label label-west">WESTERN GHATS</div>
-              <div className="map-label label-east">EASTERN HIMALAYAS</div>
-
-              {zones.map((z, i) => {
-                const positions = [[28, 51], [34, 62], [23, 43], [31, 74], [46, 57], [75, 31]][i];
-                return (
-                  <button
-                    key={z.id}
-                    className={`marker ${z.id === selected ? "active" : ""}`}
-                    style={{ left: `${positions[0]}%`, top: `${positions[1]}%`, color: statusColor(z.tier) }}
-                    onClick={(event) => { event.stopPropagation(); setSelected(z.id); setSelectedPoint(null); }}
-                  >
-                    <span className="marker-pulse" />
-                    <span className="marker-core" />
-                    <label>{z.name.toUpperCase()}</label>
-                  </button>
-                );
-              })}
-
-              {displayedEvents.slice(0, 24).map((event, index) => {
-                const [left, top] = eventPosition(event, index);
-                return (
-                  <button
-                    key={event.id}
-                    className={`eonet-marker ${eventTone(event.date)}`}
-                    style={{ left: `${left}%`, top: `${top}%` }}
-                    onClick={(clickEvent) => { clickEvent.stopPropagation(); setEventFocus(event); }}
-                    aria-label={`NASA EONET event ${event.title}`}
-                  >
-                    <span />
-                    <b>{eventTone(event.date) === "very-recent" ? "NEW" : "NASA"}</b>
-                  </button>
-                );
-              })}
-
-              {eventFocus && (
-                <div className="eonet-popover">
-                  <button className="popover-close" onClick={() => setEventFocus(null)} aria-label="Close event details">
-                    <X size={13} />
-                  </button>
-                  <span className="panel-kicker">NASA EONET / REPORTED EVENT</span>
-                  <strong>{eventFocus.title}</strong>
-                  <small>{new Date(eventFocus.date).toLocaleString("en-GB")}</small>
-                  <small>{eventFocus.latitude.toFixed(3)}° N · {eventFocus.longitude.toFixed(3)}° E</small>
-                  <small>STATUS: {eventFocus.status.toUpperCase()} · SOURCE: {eventFocus.source}</small>
-                </div>
-              )}
-
-              <div className="map-click-hint">CLICK MAP TO ANALYZE LOCATION</div>
-              {liveQuery.isLoading && <MapCanvasSkeleton />}
-              {!demoMode && liveAvailable && displayedEvents.length === 0 && !liveQuery.isLoading && (
-                <div className="map-empty"><AlertTriangle size={14} /> NO CURRENT NASA EONET LANDSLIDE EVENTS IN FEED</div>
-              )}
-              {selectedPoint && (
-                <div className="selected-point" style={{ left: `${Math.max(4, Math.min(96, ((selectedPoint.longitude - 68) / 28) * 100))}%`, top: `${Math.max(4, Math.min(96, (1 - (selectedPoint.latitude - 8) / 28) * 100))}%` }}>
-                  <span /><b>ANALYSIS POINT</b>
-                </div>
-              )}
-              <div className="map-scale"><span>0</span><i /><span>100 km</span></div>
-              <div className="map-legend">
-                <span><i style={{ background: "#6FA377" }} /> STABLE</span>
-                <span><i style={{ background: "#D6A24E" }} /> WATCH</span>
-                <span><i style={{ background: "#C24B3F" }} /> CRITICAL</span>
-                <span className="eonet-legend"><i /> NASA EONET EVENTS</span>
-              </div>
-            </div>
-            <div className="map-foot">
-              <span><Crosshair size={14} /> FOCUSED NODE: <b>{zone.id}</b></span>
-              <span>BASEMAP: TOPOGRAPHIC CONTOURS</span>
-            </div>
+          {/* Center Column: Terrain GIS Interactive Map (Expansive) */}
+          <div id="map-panel" className="map-panel panel lg:col-span-6 xl:col-span-6 2xl:col-span-6 flex flex-col p-0 overflow-hidden shadow-2xl rounded-xl border border-stone-800">
+            <InteractiveGisMap
+              zones={gisZones}
+              selectedZoneId={selected}
+              onSelectZone={(zoneId) => {
+                setSelected(zoneId);
+                setSelectedPoint(null);
+              }}
+              onMapClickPoint={(point) => {
+                setSelectedPoint(point);
+                setNotice(`Analysis pin set to ${point.latitude}°N, ${point.longitude}°E`);
+              }}
+              selectedPoint={selectedPoint}
+              nasaEvents={displayedEvents}
+            />
           </div>
 
           {/* Right Column: Zone Intelligence & Gauges */}
-          <aside className="intelligence panel lg:col-span-12 xl:col-span-3 flex flex-col">
+          <aside className="intelligence panel lg:col-span-3 xl:col-span-3 2xl:col-span-3 flex flex-col h-full">
             <div className="panel-title">
               <span>ZONE INTELLIGENCE</span>
               <span className="mono">{zone.id}</span>
@@ -1300,7 +1279,7 @@ Official Disclaimer: Landsora is an IoT decision-support prototype. Directives m
                 {/* Contextual AI Assistant with 4 Preset Roadmap Questions */}
                 <div className="copilot-card panel md:col-span-2 lg:col-span-12 xl:col-span-4 min-h-[380px] flex flex-col">
                   <div className="panel-title">
-                    <span><Sparkles size={14} /> LANDSORA AI Q&A ASSISTANT</span>
+                    <span className="flex items-center gap-1.5"><Sparkles size={14} className="text-amber-400" /> AI COMPANION</span>
                     <span className="mono">{assistantMutation.isPending ? "THINKING…" : "READY"}</span>
                   </div>
                   <div className="assistant-box flex-1 flex flex-col">

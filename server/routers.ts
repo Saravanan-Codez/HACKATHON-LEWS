@@ -18,6 +18,8 @@ import {
   type ChatModel,
   type ChatMessage,
 } from "./services/geminiAiService";
+import { getUserQuota, consumeUserQuota } from "./services/quotaService";
+import { translateText, translateBatch } from "./services/googleTranslateService";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
 
@@ -83,9 +85,33 @@ export const appRouter = router({
     }),
   }),
   chat: router({
+    quota: publicProcedure.query(async ({ ctx }) => {
+      return {
+        isAuthenticated: true,
+        user: ctx.user ? {
+          id: ctx.user.id,
+          name: ctx.user.name,
+          email: ctx.user.email,
+          role: ctx.user.role,
+        } : {
+          id: 1,
+          name: "Gemini User",
+          email: "user@gmail.com",
+          role: "user",
+        },
+        quota: {
+          used: 0,
+          limit: 100,
+          remaining: 100,
+          isUnlimited: true,
+          resetsInHours: 24,
+        },
+      };
+    }),
     send: publicProcedure
       .input(
         z.object({
+          apiKey: z.string().optional(),
           messages: z.array(
             z.object({
               role: z.enum(["user", "model"]),
@@ -109,36 +135,28 @@ export const appRouter = router({
             .optional(),
         })
       )
-      .mutation(async ({ ctx, input }) => {
-        // Enforce Google Account requirement for AI Chatbot
-        if (!ctx.user) {
-          return {
-            requiresAuth: true,
-            responseMessage: {
-              role: "model" as const,
-              parts: [
-                {
-                  text: "Google Account Required: Please sign in with your Google account to access the multi-turn Gemini chatbot, Search grounding, and Maps intelligence.",
-                },
-              ],
-              timestamp: new Date().toISOString(),
-            },
-            provider: "GOOGLE_AUTH_REQUIRED",
-            model: input.model,
-            generatedAt: new Date().toISOString(),
-          };
-        }
-
-        return await executeMultiTurnChat({
+      .mutation(async ({ input }) => {
+        const chatResult = await executeMultiTurnChat({
           messages: input.messages as ChatMessage[],
           role: input.role as ChatRole,
           model: input.model as ChatModel,
           grounding: input.grounding,
+          apiKey: input.apiKey,
           context: input.context ? {
             ...input.context,
             language: input.context.language as AiLanguage | undefined,
           } : undefined,
         });
+
+        return {
+          ...chatResult,
+          quota: {
+            used: 0,
+            limit: 100,
+            remaining: 100,
+            isUnlimited: true,
+          },
+        };
       }),
   }),
   grounding: router({
@@ -154,6 +172,7 @@ export const appRouter = router({
         if (!ctx.user) {
           return {
             requiresAuth: true,
+            quotaExceeded: false,
             text: "Google Account Required: Sign in with your Google account to enable Google Search grounded weather and hazard intelligence.",
             sources: [],
             provider: "GOOGLE_AUTH_REQUIRED",
@@ -162,11 +181,30 @@ export const appRouter = router({
           };
         }
 
-        return await executeSearchGroundedQuery({
+        const quotaCheck = consumeUserQuota(ctx.user.id, ctx.user.role);
+        if (!quotaCheck.allowed) {
+          return {
+            requiresAuth: false,
+            quotaExceeded: true,
+            quota: quotaCheck.quota,
+            text: quotaCheck.message || "Daily query quota reached.",
+            sources: [],
+            provider: "QUOTA_LIMIT_REACHED",
+            model: "gemini-3.5-flash",
+            generatedAt: new Date().toISOString(),
+          };
+        }
+
+        const result = await executeSearchGroundedQuery({
           query: input.query,
           location: input.location,
           language: input.language as AiLanguage,
         });
+
+        return {
+          ...result,
+          quota: quotaCheck.quota,
+        };
       }),
     maps: publicProcedure
       .input(
@@ -180,6 +218,7 @@ export const appRouter = router({
         if (!ctx.user) {
           return {
             requiresAuth: true,
+            quotaExceeded: false,
             text: "Google Account Required: Sign in with your Google account to unlock Google Maps grounded terrain and road corridor intelligence.",
             places: [],
             provider: "GOOGLE_AUTH_REQUIRED",
@@ -188,11 +227,30 @@ export const appRouter = router({
           };
         }
 
-        return await executeMapsGroundedQuery({
+        const quotaCheck = consumeUserQuota(ctx.user.id, ctx.user.role);
+        if (!quotaCheck.allowed) {
+          return {
+            requiresAuth: false,
+            quotaExceeded: true,
+            quota: quotaCheck.quota,
+            text: quotaCheck.message || "Daily query quota reached.",
+            places: [],
+            provider: "QUOTA_LIMIT_REACHED",
+            model: "gemini-3.5-flash",
+            generatedAt: new Date().toISOString(),
+          };
+        }
+
+        const result = await executeMapsGroundedQuery({
           location: input.location,
           query: input.query,
           language: input.language as AiLanguage,
         });
+
+        return {
+          ...result,
+          quota: quotaCheck.quota,
+        };
       }),
   }),
   landslides: router({
@@ -382,6 +440,37 @@ export const appRouter = router({
         ],
       };
     }),
+  }),
+  translate: router({
+    text: publicProcedure
+      .input(
+        z.object({
+          text: z.string().min(1),
+          targetLang: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const translated = await translateText(input.text, input.targetLang);
+        return {
+          original: input.text,
+          translated,
+          targetLang: input.targetLang,
+        };
+      }),
+    batch: publicProcedure
+      .input(
+        z.object({
+          texts: z.array(z.string()),
+          targetLang: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const translations = await translateBatch(input.texts, input.targetLang);
+        return {
+          translations,
+          targetLang: input.targetLang,
+        };
+      }),
   }),
 });
 

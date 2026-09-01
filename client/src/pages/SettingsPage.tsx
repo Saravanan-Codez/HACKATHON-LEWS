@@ -4,12 +4,19 @@ import { Link } from "wouter";
 import { ArrowLeft, Check, Database, Globe2, Radio, Save, Shield, Sliders, Trash2, Wifi } from "lucide-react";
 import { getStoredNotificationLanguage, notificationLanguages, saveNotificationLanguage, type NotificationLanguage } from "@/lib/notificationTranslations";
 import { clearQueuedReports } from "@/lib/reportQueue";
+import { useCriticalRiskToast } from "@/contexts/CriticalRiskToastContext";
 
 export default function SettingsPage() {
+  const {
+    notificationPermission,
+    requestNotificationPermission,
+    isMuted,
+    toggleMute,
+    simulateCriticalAlert,
+  } = useCriticalRiskToast();
   const [lang, setLang] = useState<NotificationLanguage>(() => getStoredNotificationLanguage());
   const [pollingInterval, setPollingInterval] = useState("2.5");
   const [defaultZone, setDefaultZone] = useState("KDG-03");
-  const [audioAlerts, setAudioAlerts] = useState(true);
   const [savedNotice, setSavedNotice] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
@@ -71,13 +78,50 @@ export default function SettingsPage() {
 
               <div className="settings-row">
                 <div>
+                  <label>Browser Push Notifications (HTML5)</label>
+                  <small>
+                    Permission Status:{" "}
+                    <b>
+                      {notificationPermission === "granted"
+                        ? "GRANTED (Active)"
+                        : notificationPermission === "denied"
+                        ? "DENIED (Blocked in browser settings)"
+                        : notificationPermission === "unsupported"
+                        ? "UNSUPPORTED"
+                        : "NOT ENABLED"}
+                    </b>
+                  </small>
+                </div>
+                <div className="flex items-center gap-2">
+                  {notificationPermission !== "granted" ? (
+                    <button
+                      type="button"
+                      onClick={() => requestNotificationPermission()}
+                      className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs font-mono transition-colors"
+                    >
+                      ENABLE PUSH NOTIFICATIONS
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => simulateCriticalAlert()}
+                      className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-amber-300 font-mono text-xs border border-amber-500/30 transition-colors"
+                    >
+                      TEST DESKTOP NOTIFICATION
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="settings-row">
+                <div>
                   <label>Audible Critical Warning Beep</label>
-                  <small>Emit browser notification sound when risk escalates past 70/100 threshold.</small>
+                  <small>Emit browser sound when risk escalates past 70/100 threshold.</small>
                 </div>
                 <input
                   type="checkbox"
-                  checked={audioAlerts}
-                  onChange={(e) => setAudioAlerts(e.target.checked)}
+                  checked={!isMuted}
+                  onChange={toggleMute}
                   className="settings-checkbox"
                 />
               </div>

@@ -1,6 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
 import { invokeLLM } from "../_core/llm";
-import { ENV } from "../_core/env";
 
 export const supportedRiskLevels = ["LOW", "MODERATE", "HIGH", "CRITICAL"] as const;
 export type RiskLevel = (typeof supportedRiskLevels)[number];
@@ -37,7 +36,7 @@ export type AiRiskAssessment = {
   searchQueries?: string[];
 };
 
-const safetyWarning = (language: AiLanguage) =>
+export const safetyWarning = (language: AiLanguage) =>
   language === "HI"
     ? "AI केवल उपलब्ध पर्यावरणीय आंकड़ों की व्याख्या करता है। आपात स्थिति में हमेशा आधिकारिक आपदा प्रबंधन अधिकारियों के निर्देशों का पालन करें।"
     : language === "TA"
@@ -49,6 +48,118 @@ const safetyWarning = (language: AiLanguage) =>
     : language === "ML"
     ? "ലഭ്യമായ പരിസ്ഥിതി ഡാറ്റയെ AI വ്യാഖ്യാനിക്കുക മാത്രമാണ് ചെയ്യുന്നത്. അടിയന്തര സാഹചര്യങ്ങളിൽ ഔദ്യോഗിക ദുരന്തനിവാരണ അധികാരികളുടെ നിർദ്ദേശങ്ങൾ എപ്പോഴും പാലിക്കുക."
     : "AI provides an interpretation of available environmental data. Official disaster-management authorities should always be followed during emergencies.";
+
+export const insufficientData = (language: AiLanguage): AiRiskAssessment => ({
+  provider: "BUILT_IN_SERVER_LLM",
+  model: "claude-haiku-4-5",
+  status: "INSUFFICIENT_DATA",
+  riskLevel: "LOW",
+  assessment: "AI data interpretation is paused until verified telemetry or environmental feeds are restored.",
+  why: "Reliable live sensor streams are currently unavailable for this sector.",
+  factors: ["Telemetry feed unavailable"],
+  actions: ["Rely on manual site inspection and local emergency control room protocols."],
+  warning: safetyWarning(language),
+  confidence: "LOW",
+  generatedAt: new Date().toISOString(),
+});
+
+export const assistantFallback = (language: AiLanguage) =>
+  language === "HI"
+    ? "मेरे पास इसका उत्तर देने के लिए पर्याप्त सत्यापित डेटा नहीं है। कृपया आधिकारिक आपदा प्रबंधन सलाह का पालन करें।"
+    : language === "TA"
+    ? "இதற்குப் பதிலளிக்க என்னிடம் போதுமான சரிபார்க்கப்பட்ட தரவு இல்லை. அதிகாரப்பூர்வ பேரிடர் வழிகாட்டுதல்களைப் பின்பற்றவும்."
+    : language === "TE"
+    ? "దీనికి సమాధానం ఇవ్వడానికి నా వద్ద తగినంత ధృవీకరించబడిన డేటా లేదు. అధికారిక విపత్తు సలహాలను పాటించండి."
+    : language === "KN"
+    ? "ಇದಕ್ಕೆ ಉತ್ತರಿಸಲು ನನ್ನ ಬಳಿ ಸಾಕಷ್ಟು ಪರಿಶೀಲಿಸಿದ ಡೇಟಾ ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ಅಧಿಕೃತ ವಿಪತ್ತು ನಿರ್ವಹಣಾ ಸಲಹೆಗಳನ್ನು ಪಾಲಿಸಿ."
+    : language === "ML"
+    ? "ഇതിന് ഉത്തരം നൽകാൻ എന്റെ പക്കൽ ആവശ്യമായ പരിശോധിച്ച ഡാറ്റ ലഭ്യമല്ല. ഔദ്യോഗിക ദുരന്തനിവാരണ നിർദ്ദേശങ്ങൾ പാലിക്കുക."
+    : "I don't have enough verified data to answer that. Please follow current official advisories.";
+
+export function normalizeAssessment(raw: any): AiRiskAssessment {
+  const riskStr = String(raw?.riskLevel || "").toUpperCase();
+  let riskLevel: RiskLevel = "LOW";
+  if (
+    riskStr.includes("CRITICAL") ||
+    riskStr.includes("ಗುರುತರ") ||
+    riskStr.includes("தீவிர") ||
+    riskStr.includes("తీవ్ర") ||
+    riskStr.includes("ഗുരുതര") ||
+    riskStr.includes("गंभीर")
+  ) {
+    riskLevel = "CRITICAL";
+  } else if (
+    riskStr.includes("HIGH") ||
+    riskStr.includes("ಅಧಿಕ") ||
+    riskStr.includes("அதிக") ||
+    riskStr.includes("అధిక") ||
+    riskStr.includes("உயർന്ന") ||
+    riskStr.includes("उच्च")
+  ) {
+    riskLevel = "HIGH";
+  } else if (
+    riskStr.includes("MODERATE") ||
+    riskStr.includes("ಸಾಧಾರಣ") ||
+    riskStr.includes("மிதமான") ||
+    riskStr.includes("మితమైన") ||
+    riskStr.includes("മിതമായ") ||
+    riskStr.includes("मध्यम")
+  ) {
+    riskLevel = "MODERATE";
+  } else {
+    riskLevel = "LOW";
+  }
+
+  const confStr = String(raw?.confidence || "").toUpperCase();
+  let confidence: "HIGH" | "MEDIUM" | "LOW" = "MEDIUM";
+  if (
+    confStr.includes("HIGH") ||
+    confStr.includes("ಹೆಚ್ಚು") ||
+    confStr.includes("அதிக") ||
+    confStr.includes("అధిక") ||
+    confStr.includes("உயർന്ന") ||
+    confStr.includes("उच्च")
+  ) {
+    confidence = "HIGH";
+  } else if (
+    confStr.includes("LOW") ||
+    confStr.includes("ಕಡಿಮೆ") ||
+    confStr.includes("குறைந்த") ||
+    confStr.includes("తక్కువ") ||
+    confStr.includes("കുറഞ്ഞ") ||
+    confStr.includes("कम")
+  ) {
+    confidence = "LOW";
+  } else if (
+    confStr.includes("MEDIUM") ||
+    confStr.includes("MODERATE") ||
+    confStr.includes("ಸಾಧಾರಣ") ||
+    confStr.includes("மிதமான") ||
+    confStr.includes("మితమైన") ||
+    confStr.includes("മിതമായ") ||
+    confStr.includes("मध्यम")
+  ) {
+    confidence = "MEDIUM";
+  } else {
+    confidence = "MEDIUM";
+  }
+
+  return {
+    provider: raw?.provider || "BUILT_IN_SERVER_LLM",
+    model: raw?.model || "claude-haiku-4-5",
+    status: raw?.status || "READY",
+    riskLevel,
+    assessment: String(raw?.assessment || ""),
+    why: String(raw?.why || ""),
+    factors: Array.isArray(raw?.factors) ? raw.factors.map(String) : [],
+    actions: Array.isArray(raw?.actions) ? raw.actions.map(String) : [],
+    warning: String(raw?.warning || safetyWarning("EN")),
+    confidence,
+    generatedAt: raw?.generatedAt || new Date().toISOString(),
+    groundingSources: raw?.groundingSources,
+    searchQueries: raw?.searchQueries,
+  };
+}
 
 export function generateDomainAssessment(input: AiRiskInput): AiRiskAssessment {
   const { location, rainfall, soil, tilt, calculatedRiskScore, calculatedRiskLevel, language } = input;
@@ -200,73 +311,6 @@ export function generateDomainAssessment(input: AiRiskInput): AiRiskAssessment {
     warning: safetyWarning(lang),
     confidence: calculatedRiskScore > 70 || calculatedRiskScore < 30 ? "HIGH" : "MEDIUM",
     generatedAt: new Date().toISOString(),
-  };
-}
-
-export const insufficientData = (language: AiLanguage): AiRiskAssessment => ({
-  provider: "BUILT_IN_SERVER_LLM",
-  model: "claude-haiku-4-5",
-  status: "INSUFFICIENT_DATA",
-  riskLevel: "LOW",
-  assessment: "AI data interpretation is paused until verified telemetry or environmental feeds are restored.",
-  why: "Reliable live sensor streams are currently unavailable for this sector.",
-  factors: ["Telemetry feed unavailable"],
-  actions: ["Rely on manual site inspection and local emergency control room protocols."],
-  warning: safetyWarning(language),
-  confidence: "LOW",
-  generatedAt: new Date().toISOString(),
-});
-
-export const assistantFallback = (language: AiLanguage) =>
-  language === "HI"
-    ? "मेरे पास इसका उत्तर देने के लिए पर्याप्त सत्यापित डेटा नहीं है। कृपया आधिकारिक आपदा प्रबंधन सलाह का पालन करें।"
-    : language === "TA"
-    ? "இதற்குப் பதிலளிக்க என்னிடம் போதுமான சரிபார்க்கப்பட்ட தரவு இல்லை. அதிகாரப்பூர்வ பேரிடர் வழிகாட்டுதல்களைப் பின்பற்றவும்."
-    : language === "TE"
-    ? "దీనికి సమాధానం ఇవ్వడానికి నా వద్ద తగినంత ధృవీకరించబడిన డేటా లేదు. అధికారిక విపత్తు సలహాలను పాటించండి."
-    : language === "KN"
-    ? "ಇದಕ್ಕೆ ಉತ್ತರಿಸಲು ನನ್ನ ಬಳಿ ಸಾಕಷ್ಟು ಪರಿಶೀಲಿಸಿದ ಡೇಟಾ ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ಅಧಿಕೃತ ವಿಪತ್ತು ನಿರ್ವಹಣಾ ಸಲಹೆಗಳನ್ನು ಪಾಲಿಸಿ."
-    : language === "ML"
-    ? "ഇതിന് ഉത്തരം നൽകാൻ എന്റെ പക്കൽ ആവശ്യമായ പരിശോധിച്ച ഡാറ്റ ലഭ്യമല്ല. ഔദ്യോഗിക ദുരന്തനിവാരണ നിർദ്ദേശങ്ങൾ പാലിക്കുക."
-    : "I don't have enough verified data to answer that. Please follow current official advisories.";
-
-export function normalizeAssessment(raw: any): AiRiskAssessment {
-  const riskStr = String(raw?.riskLevel || "").toUpperCase();
-  let riskLevel: RiskLevel = "LOW";
-  if (riskStr.includes("CRITICAL") || riskStr.includes("ಗುರುತರ") || riskStr.includes("தீவிர") || riskStr.includes("తీవ్ర") || riskStr.includes("ഗുരുതര") || riskStr.includes("गंभीर")) {
-    riskLevel = "CRITICAL";
-  } else if (riskStr.includes("HIGH") || riskStr.includes("ಅಧಿಕ") || riskStr.includes("அதிக") || riskStr.includes("అధిక") || riskStr.includes("ഉയർന്ന") || riskStr.includes("उच्च")) {
-    riskLevel = "HIGH";
-  } else if (riskStr.includes("MODERATE") || riskStr.includes("ಸಾಧಾರಣ") || riskStr.includes("மிதமான") || riskStr.includes("మితమైన") || riskStr.includes("മിതമായ") || riskStr.includes("मध्यम")) {
-    riskLevel = "MODERATE";
-  } else {
-    riskLevel = "LOW";
-  }
-
-  const confStr = String(raw?.confidence || "").toUpperCase();
-  let confidence: "HIGH" | "MEDIUM" | "LOW" = "MEDIUM";
-  if (confStr.includes("HIGH") || confStr.includes("ಹೆಚ್ಚು") || confStr.includes("அதிக") || confStr.includes("అధిక") || confStr.includes("ഉയർന്ന") || confStr.includes("उच्च")) {
-    confidence = "HIGH";
-  } else if (confStr.includes("LOW") || confStr.includes("ಕಡಿಮೆ") || confStr.includes("குறைந்த") || confStr.includes("తక్కువ") || confStr.includes("കുറഞ്ഞ") || confStr.includes("कम")) {
-    confidence = "LOW";
-  } else {
-    confidence = "MEDIUM";
-  }
-
-  return {
-    provider: raw?.provider || "BUILT_IN_SERVER_LLM",
-    model: raw?.model || "claude-haiku-4-5",
-    status: raw?.status || "READY",
-    riskLevel,
-    assessment: String(raw?.assessment || ""),
-    why: String(raw?.why || ""),
-    factors: Array.isArray(raw?.factors) ? raw.factors.map(String) : [],
-    actions: Array.isArray(raw?.actions) ? raw.actions.map(String) : [],
-    warning: String(raw?.warning || safetyWarning("EN")),
-    confidence,
-    generatedAt: raw?.generatedAt || new Date().toISOString(),
-    groundingSources: raw?.groundingSources,
-    searchQueries: raw?.searchQueries,
   };
 }
 
@@ -434,66 +478,6 @@ export async function answerLeWsQuestion(input: AiAssistantInput): Promise<{ pro
   const apiKey = process.env.GEMINI_API_KEY;
   if (apiKey) {
     try {
-        return {
-    provider: "LANDSORA_INTELLIGENCE_ENGINE",
-    status: "READY",
-    answer,
-    generatedAt: new Date().toISOString(),
-  };
-}��ಂದ ದೂರವಿರಿ, ತುರ್ತು ವಸ್ತುಗಳನ್ನು ಸಿದ್ಧವಾಗಿಟ್ಟುಕೊಳ್ಳಿ ಮತ್ತು ಜಿಲ್ಲಾ ವಿಪತ್ತು ನಿರ್ವಹಣಾ ಪ್ರಾಧಿಕಾರ (DDMA) ಅಥವಾ ಸ್ಥಳೀಯ ಪಂಚಾಯತ್ ನೀಡುವ ಸೂಚನೆಗಳನ್ನು ಕಡ್ಡಾಯವಾಗಿ ಪಾಲಿಸಿ.`;
-    } else {
-      answer = `Upon receiving an alert, avoid steep slope faces, clear water runoff channels, prepare emergency evacuation bags, and strictly follow instructions from local disaster management authorities.`;
-    }
-  } else {
-    if (lang === "KN") {
-      answer = `${input.location} ವಲಯದಲ್ಲಿ IoT ಸೆನ್ಸಾರ್‌ಗಳು ಮಳೆ (${input.rainfall.toFixed(1)} mm/hr), ಮಣ್ಣಿನ ಆರ್ದ್ರತೆ (${input.soil.toFixed(1)}%) ಮತ್ತು ಇಳಿಜಾರು ಕೋನವನ್ನು ನೈಜ ಸಮಯದಲ್ಲಿ ಅಳೆಯುತ್ತಿವೆ. ಒಟ್ಟು ಅಪಾಯ ಸ್ಕೋರ್ ${input.calculatedRiskScore}/100 ಆಗಿದೆ.`;
-    } else {
-      answer = `Landsora telemetry for ${input.location} tracks real-time precipitation (${input.rainfall.toFixed(1)} mm/hr), soil moisture (${input.soil.toFixed(1)}%), and slope displacement (${input.tilt.toFixed(3)}°/hr), yielding an integrated risk index of ${input.calculatedRiskScore}/100.`;
-    }
-  }
-
-  return {
-    provider: "LANDSORA_INTELLIGENCE_ENGINE",
-    status: "READY",
-    answer,
-    generatedAt: new Date().toISOString(),
-  };
-}rray(parsed.actions) ? parsed.actions.map(String) : [],
-            warning: String(parsed.warning || safetyWarning(input.language)),
-            confidence: (["HIGH", "MEDIUM", "LOW"].includes(parsed.confidence) ? parsed.confidence : "HIGH") as "HIGH" | "MEDIUM" | "LOW",
-            generatedAt: new Date().toISOString(),
-            groundingSources: groundingSources.length > 0 ? groundingSources : undefined,
-            searchQueries: searchQueries.length > 0 ? searchQueries : undefined,
-          };
-        }
-      }
-    } catch (err) {
-      console.warn("[Gemini API] Online inference fallback to deterministic synthesis:", err);
-    }
-  }
-
-  // If Gemini API Key is not set or network fails, return high-accuracy deterministic synthesis
-  return generateDomainAssessment(input);
-}
-
-export type AiAssistantInput = {
-  question: string;
-  language: AiLanguage;
-  location: string;
-  rainfall: number;
-  weather: string;
-  soil: number;
-  tilt: number;
-  recentEventCount: number;
-  calculatedRiskScore: number;
-  calculatedRiskLevel: RiskLevel;
-  dataAvailable: boolean;
-};
-
-export async function answerLeWsQuestion(input: AiAssistantInput): Promise<{ provider: string; status: "READY" | "INSUFFICIENT_DATA" | "UNAVAILABLE"; answer: string; generatedAt: string; groundingSources?: { title: string; url: string }[] }> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey) {
-    try {
       const ai = new GoogleGenAI({
         apiKey,
         httpOptions: {
@@ -517,7 +501,7 @@ Question: "${input.question}"
 Provide a concise, practical, 2-3 sentence answer in ${input.language}. Prioritize human life safety, clear explanation of the IoT numbers, and actionable advice. No Markdown formatting.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }],
@@ -541,7 +525,7 @@ Provide a concise, practical, 2-3 sentence answer in ${input.language}. Prioriti
 
       if (text && text.length > 5) {
         return {
-          provider: "GEMINI_3_5_FLASH_SEARCH_GROUNDED",
+          provider: "GEMINI_2_5_FLASH_SEARCH_GROUNDED",
           status: "READY",
           answer: text,
           generatedAt: new Date().toISOString(),
@@ -549,8 +533,38 @@ Provide a concise, practical, 2-3 sentence answer in ${input.language}. Prioriti
         };
       }
     } catch (err) {
-      console.warn("[Gemini Q&A] Fallback to domain engine:", err);
+      console.warn("[Gemini Q&A] Fallback to LLM / Domain:", err);
     }
+  }
+
+  // Fallback: invokeLLM
+  try {
+    const response = await invokeLLM({
+      model: "claude-haiku-4-5",
+      maxTokens: 500,
+      messages: [
+        {
+          role: "system",
+          content: "You are the LEWS contextual assistant. Answer in the requested language concisely.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify(input),
+        },
+      ],
+    });
+
+    const text = response.choices?.[0]?.message?.content;
+    if (typeof text === "string" && text.trim().length > 5) {
+      return {
+        provider: "BUILT_IN_SERVER_LLM",
+        status: "READY",
+        answer: text.trim().replace(/^```(?:text)?\s*/i, "").replace(/\s*```$/i, ""),
+        generatedAt: new Date().toISOString(),
+      };
+    }
+  } catch (err) {
+    console.warn("[Assistant LLM Fallback] Failed:", err);
   }
 
   // Domain Q&A synthesis
@@ -558,7 +572,7 @@ Provide a concise, practical, 2-3 sentence answer in ${input.language}. Prioriti
   const lang = input.language || "EN";
   let answer = "";
 
-  if (q.includes("current risk") || q.includes("risk level") || q.includes("ಸ್ಥಿತಿ") || q.includes("ಅಪಾಯ")) {
+  if (q.includes("current risk") || q.includes("risk level") || q.includes("ಸ್ಥಿತಿ") || q.includes("அபாய")) {
     if (lang === "KN") {
       answer = `${input.location} ನಲ್ಲಿ ಪ್ರಸ್ತುತ ಭೂಕುಸಿತದ ಅಪಾಯ ಮಟ್ಟವು ${input.calculatedRiskLevel} (${input.calculatedRiskScore}/100) ಆಗಿದೆ. ಮಳೆಯ ಪ್ರಮಾಣವು ${input.rainfall.toFixed(1)} mm/hr ಮತ್ತು ಮಣ್ಣಿನ ತೇವಾಂಶವು ${input.soil.toFixed(1)}% ಇದೆ.`;
     } else if (lang === "TA") {

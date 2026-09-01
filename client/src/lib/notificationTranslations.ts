@@ -210,21 +210,60 @@ export const renderNotification = (kind: NotificationKind, language: Notificatio
 };
 
 /**
- * Automatically detects the native South Indian language for a given monitored zone.
+ * Automatically detects the native regional language for a given monitored zone.
  */
 export const detectLanguageForZone = (zoneIdOrName: string): NotificationLanguage => {
   const normalized = zoneIdOrName.toUpperCase();
-  if (normalized.includes("KDG") || normalized.includes("KODAGU") || normalized.includes("CHK") || normalized.includes("CHIKKAMAGALURU") || normalized.includes("UKA") || normalized.includes("UTTARA")) {
-    return "KN"; // Kannada for Karnataka Ghats
+  if (
+    normalized.includes("KDG") ||
+    normalized.includes("KODAGU") ||
+    normalized.includes("COORG") ||
+    normalized.includes("CHK") ||
+    normalized.includes("CHIKKAMAGALURU") ||
+    normalized.includes("UKA") ||
+    normalized.includes("UTTARA")
+  ) {
+    return "KN"; // Kannada for Karnataka Western Ghats
   }
-  if (normalized.includes("WYD") || normalized.includes("WAYANAD") || normalized.includes("KERALA") || normalized.includes("IDUKKI")) {
-    return "ML"; // Malayalam for Kerala
+  if (
+    normalized.includes("WYD") ||
+    normalized.includes("WAYANAD") ||
+    normalized.includes("IDK") ||
+    normalized.includes("IDUKKI") ||
+    normalized.includes("MNR") ||
+    normalized.includes("MUNNAR") ||
+    normalized.includes("KERALA")
+  ) {
+    return "ML"; // Malayalam for Kerala Hill Tracts
   }
-  if (normalized.includes("NLG") || normalized.includes("NILGIRIS") || normalized.includes("TAMIL") || normalized.includes("SALEM") || normalized.includes("OOTY")) {
-    return "TA"; // Tamil for Tamil Nadu
+  if (
+    normalized.includes("NLG") ||
+    normalized.includes("NILGIRIS") ||
+    normalized.includes("COONOOR") ||
+    normalized.includes("VLP") ||
+    normalized.includes("VALPARAI") ||
+    normalized.includes("TAMIL")
+  ) {
+    return "TA"; // Tamil for Tamil Nadu Ghats
   }
-  if (normalized.includes("ANDHRA") || normalized.includes("TELANGANA") || normalized.includes("VIZAG") || normalized.includes("ARAKU")) {
-    return "TE"; // Telugu for Eastern Ghats / Andhra
+  if (
+    normalized.includes("ANDHRA") ||
+    normalized.includes("TELANGANA") ||
+    normalized.includes("VIZAG") ||
+    normalized.includes("ARAKU")
+  ) {
+    return "TE"; // Telugu for Eastern Ghats
+  }
+  if (
+    normalized.includes("SHM") ||
+    normalized.includes("SHIMLA") ||
+    normalized.includes("CHM") ||
+    normalized.includes("CHAMOLI") ||
+    normalized.includes("JOSHIMATH") ||
+    normalized.includes("MHD") ||
+    normalized.includes("MAHAD")
+  ) {
+    return "HI"; // Hindi for Northern & Central Mountain Belts
   }
   return "EN";
 };
@@ -233,6 +272,10 @@ export const detectLanguageForZone = (zoneIdOrName: string): NotificationLanguag
  * Automatically detects native regional language from GPS coordinates.
  */
 export const detectLanguageFromCoords = (latitude: number, longitude: number): NotificationLanguage => {
+  // Northern India / Himalayas (Himachal, Uttarakhand)
+  if (latitude >= 28.0 && latitude <= 35.0 && longitude >= 75.0 && longitude <= 82.0) {
+    return "HI";
+  }
   // Kerala polygon bounds approx (8.2°N - 12.8°N, 75°E - 77.2°E)
   if (latitude >= 8.2 && latitude <= 12.5 && longitude >= 75.0 && longitude <= 77.2) {
     if (latitude < 12.0 && longitude > 75.8) return "ML";

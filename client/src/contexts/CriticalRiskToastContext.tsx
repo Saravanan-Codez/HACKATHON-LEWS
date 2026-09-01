@@ -1,4 +1,4 @@
-/* Landsora Critical Landslide Risk Toast Notification System */
+/* Landsora Critical Landslide Risk Toast & Real HTML5 Browser Push Notification System */
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 
 export interface CriticalAlertPayload {
@@ -21,11 +21,17 @@ export interface CriticalAlertToast extends CriticalAlertPayload {
   acknowledged: boolean;
 }
 
+export type BrowserNotificationStatus = "granted" | "denied" | "default" | "unsupported";
+
 interface CriticalRiskToastContextType {
   toasts: CriticalAlertToast[];
   alertHistory: CriticalAlertToast[];
   isMuted: boolean;
   toggleMute: () => void;
+  notificationPermission: BrowserNotificationStatus;
+  requestNotificationPermission: () => Promise<BrowserNotificationStatus>;
+  showPermissionBanner: boolean;
+  dismissPermissionBanner: () => void;
   triggerCriticalAlert: (payload: CriticalAlertPayload) => void;
   dismissToast: (id: string) => void;
   acknowledgeToast: (id: string) => void;
@@ -35,19 +41,21 @@ interface CriticalRiskToastContextType {
 
 const CriticalRiskToastContext = createContext<CriticalRiskToastContextType | undefined>(undefined);
 
-// Web Audio API emergency chime synthesizer (no external audio files required)
+// Web Audio API emergency chime synthesizer
 function playEmergencyChime() {
   try {
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
-    
+
     const ctx = new AudioContextClass();
     if (ctx.state === "suspended") {
       ctx.resume().catch(() => {});
     }
 
     const now = ctx.currentTime;
-    
+
     // Tone 1: 880 Hz (A5)
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
@@ -75,13 +83,35 @@ function playEmergencyChime() {
     osc2.start(now + 0.15);
     osc2.stop(now + 0.45);
 
-    // Auto close context after tones complete
     setTimeout(() => {
       ctx.close().catch(() => {});
     }, 1000);
   } catch (err) {
-    // Audio playback may be restricted by browser autoplay policy before user interaction
     console.debug("Emergency audio chime blocked by browser autoplay policy", err);
+  }
+}
+
+// Native HTML5 Browser Desktop Notification Dispatcher
+async function sendNativeBrowserNotification(title: string, options: NotificationOptions) {
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready.catch(() => null);
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, options);
+        return;
+      }
+    }
+
+    const notif = new window.Notification(title, options);
+    notif.onclick = () => {
+      window.focus();
+      notif.close();
+    };
+  } catch (err) {
+    console.warn("Native Notification dispatch error:", err);
   }
 }
 
@@ -95,6 +125,74 @@ export function CriticalRiskToastProvider({ children }: { children: React.ReactN
       return false;
     }
   });
+
+  // Browser HTML5 Notification Permission State
+  const [notificationPermission, setNotificationPermission] = useState<BrowserNotificationStatus>(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      return Notification.permission as BrowserNotificationStatus;
+    }
+    return "unsupported";
+  });
+
+  const [showPermissionBanner, setShowPermissionBanner] = useState<boolean>(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return false;
+    if (Notification.permission === "granted" || Notification.permission === "denied") return false;
+    try {
+      return localStorage.getItem("landsora_notif_banner_dismissed") !== "true";
+    } catch {
+      return true;
+    }
+  });
+
+  // Check and sync permission status on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission as BrowserNotificationStatus);
+      if (Notification.permission === "default") {
+        const dismissed = localStorage.getItem("landsora_notif_banner_dismissed") === "true";
+        if (!dismissed) setShowPermissionBanner(true);
+      } else {
+        setShowPermissionBanner(false);
+      }
+    }
+  }, []);
+
+  const requestNotificationPermission = useCallback(async (): Promise<BrowserNotificationStatus> => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      return "unsupported";
+    }
+
+    try {
+      const result = await Notification.requestPermission();
+      const status = result as BrowserNotificationStatus;
+      setNotificationPermission(status);
+      setShowPermissionBanner(false);
+      try {
+        localStorage.setItem("landsora_notif_banner_dismissed", "true");
+      } catch {}
+
+      if (status === "granted") {
+        sendNativeBrowserNotification("🚨 Landsora Early Warning Active", {
+          body: "You will now receive real-time slope stability and landslide evacuation alerts even when this tab is minimized.",
+          icon: "/assets/lews-logo.png",
+          badge: "/assets/lews-logo.png",
+          tag: "landsora-permission-welcome",
+        });
+      }
+      return status;
+    } catch (err) {
+      console.warn("Notification.requestPermission error:", err);
+      return (Notification.permission as BrowserNotificationStatus) || "default";
+    }
+  }, []);
+
+  const dismissPermissionBanner = useCallback(() => {
+    setShowPermissionBanner(false);
+    try {
+      localStorage.setItem("landsora_notif_banner_dismissed", "true");
+    } catch {}
+  }, []);
 
   // Track recent trigger signatures to prevent rapid spam duplicate toasts (within 12 seconds per zone)
   const recentTriggersRef = useRef<Map<string, number>>(new Map());
@@ -141,18 +239,29 @@ export function CriticalRiskToastProvider({ children }: { children: React.ReactN
         acknowledged: false,
         triggerReason:
           payload.triggerReason ||
-          `Critical sensor threshold surpassed: ${payload.soilMoisture}% soil saturation & ${payload.tiltDegrees}° displacement at ${payload.zoneName}`,
+          `Critical threshold surpassed: ${payload.soilMoisture}% soil saturation & ${payload.tiltDegrees}° displacement at ${payload.zoneName}`,
       };
 
-      // Play emergency chime if sound is enabled
+      // 1. Play emergency audio chime if sound is enabled
       if (!isMuted) {
         playEmergencyChime();
       }
 
-      // Add to visible toasts (keep max 3 active on screen simultaneously)
+      // 2. Dispatch real native HTML5 browser desktop push notification
+      sendNativeBrowserNotification(`🚨 [CRITICAL HAZARD] ${payload.zoneName}`, {
+        body:
+          payload.triggerReason ||
+          `Risk Score ${payload.riskScore}/100 in ${payload.zoneName}. Rain: ${payload.rainfall}mm/hr, Soil: ${payload.soilMoisture}%, Tilt: ${payload.tiltDegrees}°. Immediate safety action advised.`,
+        icon: "/assets/lews-logo.png",
+        badge: "/assets/lews-logo.png",
+        tag: `landsora-alert-${payload.nodeId}`,
+        requireInteraction: true,
+      });
+
+      // 3. Add to visible toasts (keep max 3 active on screen simultaneously)
       setToasts((prev) => [newToast, ...prev.slice(0, 2)]);
-      
-      // Append to alert history (keep last 25)
+
+      // 4. Append to alert history (keep last 25)
       setAlertHistory((prev) => [newToast, ...prev.slice(0, 24)]);
     },
     [isMuted]
@@ -195,7 +304,7 @@ export function CriticalRiskToastProvider({ children }: { children: React.ReactN
           thresholdExceeded: "Tilt rate > 0.08°/hr & Soil > 90%",
         },
         {
-          nodeId: "WYD-02",
+          nodeId: "WYD-04",
           zoneName: "Wayanad Meppadi Slopes",
           state: "Kerala",
           riskScore: 96,
@@ -208,7 +317,7 @@ export function CriticalRiskToastProvider({ children }: { children: React.ReactN
         },
         {
           nodeId: "KDG-03",
-          zoneName: "Kodagu Valley Link",
+          zoneName: "Kodagu (Coorg)",
           state: "Karnataka",
           riskScore: 88,
           riskLevel: "CRITICAL",
@@ -238,6 +347,10 @@ export function CriticalRiskToastProvider({ children }: { children: React.ReactN
         alertHistory,
         isMuted,
         toggleMute,
+        notificationPermission,
+        requestNotificationPermission,
+        showPermissionBanner,
+        dismissPermissionBanner,
         triggerCriticalAlert,
         dismissToast,
         acknowledgeToast,

@@ -214,6 +214,7 @@ export async function executeMultiTurnChat(options: {
   role: ChatRole;
   model: ChatModel;
   grounding: "none" | "search" | "maps";
+  apiKey?: string;
   context?: {
     location?: string;
     rainfall?: number;
@@ -229,7 +230,22 @@ export async function executeMultiTurnChat(options: {
   model: string;
   generatedAt: string;
 }> {
-  const ai = getAiClient();
+  let ai = getAiClient();
+  if (options.apiKey) {
+    try {
+      ai = new GoogleGenAI({
+        apiKey: options.apiKey,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          },
+        },
+      });
+    } catch (e) {
+      console.warn("Failed to initialize custom user Gemini client:", e);
+    }
+  }
+
   const { messages, role, model, grounding, context } = options;
   const systemInstruction = ROLE_SYSTEM_INSTRUCTIONS[role] || ROLE_SYSTEM_INSTRUCTIONS.GEOTECHNICAL_SPECIALIST;
 

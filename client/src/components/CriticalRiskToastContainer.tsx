@@ -1,24 +1,16 @@
-/* Landsora Critical Landslide Risk Toast Notification Container */
+/* Landsora Critical Landslide Risk Toast & Native Push Notification Container */
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import {
-  Activity,
-  AlertOctagon,
   AlertTriangle,
   Bell,
   BellOff,
-  Bot,
   Check,
-  CheckCircle2,
-  ChevronRight,
-  CloudRain,
-  Compass,
-  ExternalLink,
   History,
-  Info,
-  MapPin,
   Radio,
+  Shield,
   ShieldAlert,
+  Sparkles,
   Volume2,
   VolumeX,
   X,
@@ -35,6 +27,10 @@ export function CriticalRiskToastContainer() {
     alertHistory,
     isMuted,
     toggleMute,
+    notificationPermission,
+    requestNotificationPermission,
+    showPermissionBanner,
+    dismissPermissionBanner,
     dismissToast,
     acknowledgeToast,
     clearAllToasts,
@@ -43,11 +39,70 @@ export function CriticalRiskToastContainer() {
 
   const [, setLocation] = useLocation();
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
 
-  // If no active toasts and history is closed, show only subtle simulator / status widget when hovered or none
+  const handleEnableNotifications = async () => {
+    setIsRequestingPermission(true);
+    try {
+      await requestNotificationPermission();
+    } finally {
+      setIsRequestingPermission(false);
+    }
+  };
+
   return (
     <>
-      {/* 1. FLOATING TOAST STACK (Top-Right / Fixed overlay) */}
+      {/* 1. NATIVE BROWSER PUSH NOTIFICATION PERMISSION PROMPT BANNER */}
+      {showPermissionBanner && notificationPermission === "default" && (
+        <aside
+          aria-label="Early warning alert subscription"
+          className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[10001] bg-[#141C1E] border-2 border-amber-500/80 rounded-xl p-4 shadow-2xl backdrop-blur-xl text-stone-100 animate-in slide-in-from-bottom-5 duration-300"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+              <Bell size={18} className="animate-bounce" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <h4 className="text-xs font-bold text-amber-300 font-mono tracking-wide uppercase">
+                  Enable Desktop Hazard Alerts
+                </h4>
+                <button
+                  type="button"
+                  onClick={dismissPermissionBanner}
+                  className="text-stone-400 hover:text-stone-200 p-0.5 rounded"
+                  title="Dismiss permission prompt"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="text-[11.5px] text-stone-300 leading-snug mb-3">
+                Receive instant sound & push alerts on your desktop or mobile device when pore saturation or tilt rates exceed structural failure limits.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleEnableNotifications}
+                  disabled={isRequestingPermission}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs font-mono transition-all shadow-md shadow-amber-500/20 disabled:opacity-50"
+                >
+                  <Bell size={13} />
+                  <span>{isRequestingPermission ? "REQUESTING…" : "ENABLE PUSH ALERTS"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissPermissionBanner}
+                  className="px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-mono transition-colors"
+                >
+                  LATER
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* 2. FLOATING TOAST STACK (Top-Right / Fixed overlay) */}
       <div
         className="fixed top-18 sm:top-20 right-3 sm:right-6 z-[9999] flex flex-col gap-3 pointer-events-none max-w-[calc(100vw-24px)] sm:max-w-md w-full"
         aria-live="assertive"
@@ -64,7 +119,7 @@ export function CriticalRiskToastContainer() {
               setLocation(`/dashboard?zone=${toast.nodeId}`);
               dismissToast(toast.id);
             }}
-            onOpenAiCopilot={() => {
+            onOpenAiCompanion={() => {
               setLocation(`/ai-chatbot?zone=${toast.nodeId}`);
               dismissToast(toast.id);
             }}
@@ -72,7 +127,7 @@ export function CriticalRiskToastContainer() {
         ))}
       </div>
 
-      {/* 2. HISTORY MODAL / SLIDE-OVER */}
+      {/* 3. HISTORY MODAL / AUDIT LOG */}
       {historyOpen && (
         <div className="fixed inset-0 z-[10000] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#172225] border border-stone-700/80 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden text-[#F4EEDC]">
@@ -98,15 +153,16 @@ export function CriticalRiskToastContainer() {
                 <button
                   type="button"
                   onClick={() => simulateCriticalAlert()}
-                  className="px-2.5 py-1 text-[11px] font-mono rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-colors"
-                  title="Simulate a new critical landslide alert"
+                  className="px-2.5 py-1 text-xs font-mono font-semibold rounded-md bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 flex items-center gap-1.5 transition-colors"
+                  title="Simulate Critical Sensor Alert"
                 >
-                  + TEST TRIGGER
+                  <Zap size={12} />
+                  <span>SIMULATE</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setHistoryOpen(false)}
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-100 hover:bg-stone-800 transition-colors"
+                  className="text-stone-400 hover:text-stone-100 p-1.5 rounded-lg hover:bg-stone-800 transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -114,18 +170,16 @@ export function CriticalRiskToastContainer() {
             </div>
 
             {/* List */}
-            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {alertHistory.length === 0 ? (
-                <div className="text-center py-12 text-stone-400">
-                  <ShieldAlert size={36} className="mx-auto text-stone-600 mb-2" />
-                  <p className="text-xs font-mono">No critical landslide alerts recorded in this session.</p>
-                  <button
-                    type="button"
-                    onClick={() => simulateCriticalAlert()}
-                    className="mt-3 px-3 py-1.5 rounded-lg bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors"
-                  >
-                    Simulate Critical Sensor Alert
-                  </button>
+                <div className="text-center py-12 text-stone-500">
+                  <Shield size={32} className="mx-auto mb-2 text-stone-600 opacity-60" />
+                  <p className="text-xs font-mono uppercase tracking-wide">
+                    NO CRITICAL ALERTS TRIGGERED YET
+                  </p>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Telemetry streams are currently within safe geological stability thresholds.
+                  </p>
                 </div>
               ) : (
                 alertHistory.map((item) => (
@@ -188,16 +242,36 @@ export function CriticalRiskToastContainer() {
 
             {/* Footer */}
             <div className="p-3.5 border-t border-stone-800 bg-stone-900/90 flex items-center justify-between text-xs">
-              <span className="text-stone-400 text-[11px] font-mono">
-                Audio siren alerts: {isMuted ? "MUTED" : "ACTIVE"}
+              <span className="text-stone-400 text-[11px] font-mono flex items-center gap-2">
+                <span>Audio siren: {isMuted ? "MUTED" : "ACTIVE"}</span>
+                <span>·</span>
+                <span>
+                  Push alerts:{" "}
+                  {notificationPermission === "granted"
+                    ? "🟢 GRANTED"
+                    : notificationPermission === "denied"
+                    ? "🔴 BLOCKED"
+                    : "🟡 NOT ENABLED"}
+                </span>
               </span>
-              <button
-                type="button"
-                onClick={() => setHistoryOpen(false)}
-                className="px-4 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium transition-colors"
-              >
-                Close History
-              </button>
+              <div className="flex items-center gap-2">
+                {alertHistory.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearAllToasts}
+                    className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-mono transition-colors"
+                  >
+                    Clear Active
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen(false)}
+                  className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs font-mono transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -213,7 +287,7 @@ function CriticalToastItem({
   onDismiss,
   onAcknowledge,
   onFocusZone,
-  onOpenAiCopilot,
+  onOpenAiCompanion,
 }: {
   toast: CriticalAlertToast;
   isMuted: boolean;
@@ -221,16 +295,15 @@ function CriticalToastItem({
   onDismiss: () => void;
   onAcknowledge: () => void;
   onFocusZone: () => void;
-  onOpenAiCopilot: () => void;
+  onOpenAiCompanion: () => void;
 }) {
   const [progress, setProgress] = useState(100);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Auto-dismiss countdown (14 seconds if not paused/acknowledged)
   useEffect(() => {
     if (toast.acknowledged || isPaused) return;
 
-    const interval = 100; // ms
+    const interval = 100;
     const totalMs = 14000;
     const decrement = (interval / totalMs) * 100;
 
@@ -259,129 +332,119 @@ function CriticalToastItem({
       }`}
       style={{
         boxShadow: toast.acknowledged
-          ? "0 10px 30px rgba(16, 185, 129, 0.2)"
-          : "0 12px 35px rgba(194, 75, 63, 0.45)",
+          ? "0 10px 30px rgba(16, 185, 129, 0.15)"
+          : "0 10px 35px rgba(239, 68, 68, 0.35)",
       }}
     >
-      {/* Progress Bar Header */}
+      {/* Progress countdown bar */}
       {!toast.acknowledged && (
-        <div className="h-1 w-full bg-stone-800 overflow-hidden">
+        <div className="w-full h-1 bg-stone-800/80">
           <div
-            className="h-full bg-gradient-to-r from-red-600 via-amber-500 to-red-600 transition-all duration-100 ease-linear"
+            className="h-full bg-gradient-to-r from-red-500 to-amber-500 transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}
           />
         </div>
       )}
 
-      <div className="p-3.5 sm:p-4 text-[#F4EEDC]">
-        {/* Top Banner Row */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-red-600/30 border border-red-500/50 flex items-center justify-center text-red-400 shrink-0">
-              <AlertOctagon size={16} className="animate-spin-slow" />
+      <div className="p-3.5 sm:p-4">
+        {/* Top Header */}
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-red-500/25 border border-red-500/50 flex items-center justify-center text-red-400 shrink-0 animate-pulse">
+              <ShieldAlert size={16} />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-red-600 text-white tracking-wider">
-                  CRITICAL SENSOR ALERT
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-500 text-white leading-none">
+                  {toast.riskLevel} {toast.riskScore}%
                 </span>
-                <span className="text-[10px] font-mono text-red-400 font-semibold">
-                  {toast.riskScore}% RISK
+                <span className="text-xs font-bold text-stone-100 truncate font-mono">
+                  {toast.zoneName}
                 </span>
               </div>
-              <h4 className="text-xs font-bold text-stone-100 mt-0.5">
-                {toast.zoneName} <span className="font-mono text-stone-400 font-normal">({toast.nodeId})</span>
-              </h4>
+              <span className="text-[10px] font-mono text-stone-400">
+                {toast.nodeId} · {toast.timestamp}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            {/* Audio Mute toggle */}
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
               onClick={onToggleMute}
-              className="p-1 rounded text-stone-400 hover:text-stone-200 transition-colors"
-              title={isMuted ? "Unmute emergency sirens" : "Mute emergency sirens"}
+              className="text-stone-400 hover:text-stone-200 p-1 rounded-md hover:bg-stone-800 transition-colors"
+              title={isMuted ? "Unmute emergency chime" : "Mute emergency chime"}
             >
-              {isMuted ? <VolumeX size={14} className="text-stone-500" /> : <Volume2 size={14} className="text-amber-400" />}
+              {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} className="text-amber-400" />}
             </button>
-            {/* Close button */}
             <button
               type="button"
               onClick={onDismiss}
-              className="p-1 rounded text-stone-400 hover:text-stone-100 transition-colors"
+              className="text-stone-400 hover:text-stone-200 p-1 rounded-md hover:bg-stone-800 transition-colors"
               title="Dismiss toast"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </div>
         </div>
 
-        {/* Reason */}
-        <p className="text-[11px] text-stone-300 font-mono leading-relaxed mb-3 bg-stone-900/80 p-2 rounded-lg border border-stone-800">
+        {/* Trigger Reason Body */}
+        <p className="text-xs text-stone-200 leading-snug mb-3 font-mono bg-stone-900/60 p-2 rounded-lg border border-stone-800/80">
           ⚠️ {toast.triggerReason}
         </p>
 
-        {/* Live Physical Telemetry Pills */}
-        <div className="grid grid-cols-3 gap-1.5 mb-3 text-[10px] font-mono">
-          <div className="bg-stone-950/70 p-1.5 rounded border border-blue-900/40 flex items-center justify-between">
-            <span className="text-stone-400 flex items-center gap-1">
-              <CloudRain size={11} className="text-blue-400" /> Rain:
-            </span>
-            <b className="text-blue-300">{toast.rainfall}mm</b>
+        {/* Telemetry Metric Pill Row */}
+        <div className="grid grid-cols-3 gap-1.5 text-[10.5px] font-mono mb-3 text-center">
+          <div className="bg-stone-950/70 p-1.5 rounded border border-stone-800">
+            <span className="text-stone-400 block text-[8.5px]">RAIN INTENSITY</span>
+            <span className="text-blue-300 font-bold">{toast.rainfall} mm/hr</span>
           </div>
-
-          <div className="bg-stone-950/70 p-1.5 rounded border border-amber-900/40 flex items-center justify-between">
-            <span className="text-stone-400 flex items-center gap-1">
-              <Activity size={11} className="text-amber-400" /> Soil:
-            </span>
-            <b className="text-amber-300">{toast.soilMoisture}%</b>
+          <div className="bg-stone-950/70 p-1.5 rounded border border-stone-800">
+            <span className="text-stone-400 block text-[8.5px]">SOIL PORE SAT</span>
+            <span className="text-amber-300 font-bold">{toast.soilMoisture}%</span>
           </div>
-
-          <div className="bg-stone-950/70 p-1.5 rounded border border-purple-900/40 flex items-center justify-between">
-            <span className="text-stone-400 flex items-center gap-1">
-              <Compass size={11} className="text-purple-400" /> Tilt:
-            </span>
-            <b className="text-purple-300">{toast.tiltDegrees}°</b>
+          <div className="bg-stone-950/70 p-1.5 rounded border border-stone-800">
+            <span className="text-stone-400 block text-[8.5px]">SLOPE TILT</span>
+            <span className="text-purple-300 font-bold">{toast.tiltDegrees}°</span>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1.5 pt-1 border-t border-stone-800">
+        {/* Action Button Strip */}
+        <div className="flex items-center gap-2 pt-1 border-t border-stone-800/80">
           {!toast.acknowledged ? (
             <button
               type="button"
               onClick={onAcknowledge}
-              className="flex-1 py-1.5 px-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-red-600/30"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] font-mono transition-all shadow-md shadow-red-600/30"
             >
-              <CheckCircle2 size={13} />
+              <Check size={13} />
               <span>ACKNOWLEDGE</span>
             </button>
           ) : (
-            <div className="flex-1 py-1 px-2 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-[10px] font-mono flex items-center justify-center gap-1.5">
-              <Check size={12} className="text-emerald-400" />
-              <span>ALARM ACKNOWLEDGED</span>
+            <div className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold text-[11px] font-mono border border-emerald-500/40">
+              <Check size={13} />
+              <span>ALERT ACKNOWLEDGED</span>
             </div>
           )}
 
           <button
             type="button"
             onClick={onFocusZone}
-            className="py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 text-[10px] font-mono transition-colors flex items-center gap-1 border border-stone-700"
-            title="Focus this node in the main telemetry console"
+            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 text-[11px] font-mono transition-colors"
+            title="Focus this sector on GIS map"
           >
-            <MapPin size={12} className="text-amber-400" />
-            <span>MAP</span>
+            <Radio size={12} className="text-cyan-400" />
+            <span>GIS MAP</span>
           </button>
 
           <button
             type="button"
-            onClick={onOpenAiCopilot}
-            className="py-1.5 px-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[10px] font-mono font-bold transition-colors flex items-center gap-1 border border-amber-500/40"
-            title="Consult Gemini AI geotechnical copilot for this hazard"
+            onClick={onOpenAiCompanion}
+            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-mono font-semibold transition-colors"
+            title="Ask AI Companion about evacuation"
           >
-            <Bot size={12} className="text-amber-400" />
-            <span>COPILOT</span>
+            <Sparkles size={12} className="text-amber-400" />
+            <span>AI</span>
           </button>
         </div>
       </div>

@@ -43,22 +43,25 @@ const trpcClient = trpc.createClient({
       url: "/api/trpc",
       transformer: superjson,
       headers() {
-        // Preview auto-login fallback: when the browser blocks iframe cookies
-        // (Safari ITP / private browsing / WebView), the runtime mirrors the
-        // session into sessionStorage so we can forward it as a Bearer token.
-        // The regular OAuth cookie flow keeps working and takes priority server-side.
         try {
+          const directToken =
+            localStorage.getItem("landsora_session_token") ||
+            sessionStorage.getItem("landsora_session_token");
+          if (directToken) {
+            return { Authorization: `Bearer ${directToken}` };
+          }
+
           const raw = sessionStorage.getItem("manus-cookie");
           if (raw) {
             const prefix = `${COOKIE_NAME}=`;
             const pair = raw.split(";").find(s => s.trim().startsWith(prefix));
-            const token = pair?.trim().slice(prefix.length);
+            const token = pair?.trim().slice(prefix.length) || raw;
             if (token) {
               return { Authorization: `Bearer ${token}` };
             }
           }
         } catch {
-          // sessionStorage unavailable
+          // storage unavailable
         }
         return {};
       },

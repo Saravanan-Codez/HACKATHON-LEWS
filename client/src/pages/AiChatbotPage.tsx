@@ -40,7 +40,19 @@ import {
   type NotificationLanguage,
 } from "@/lib/notificationTranslations";
 
-type ZoneKey = "idukki" | "wayanad" | "nilgiris" | "coorg" | "munnar" | "shimla";
+type ZoneKey =
+  | "idukki"
+  | "wayanad"
+  | "nilgiris"
+  | "coorg"
+  | "munnar"
+  | "shimla"
+  | "uttara_kannada"
+  | "chikkamagaluru"
+  | "valparai"
+  | "mahad"
+  | "chamoli"
+  | "darjeeling";
 
 const ZONES_DATA: Record<
   ZoneKey,
@@ -59,6 +71,34 @@ const ZONES_DATA: Record<
     geology: string;
   }
 > = {
+  coorg: {
+    id: "coorg",
+    name: "Kodagu (Coorg) Escarpment",
+    state: "Karnataka",
+    node: "KDG-03",
+    rainfall: 112.3,
+    soil: 78.2,
+    tilt: 3.45,
+    riskScore: 74,
+    riskLevel: "HIGH",
+    color: "#D6A24E",
+    elevation: "1,100m MSL",
+    geology: "Metamorphic Schist & Clay-Rich Subsoil",
+  },
+  wayanad: {
+    id: "wayanad",
+    name: "Wayanad Meppadi Slopes",
+    state: "Kerala",
+    node: "WYD-04",
+    rainfall: 168.0,
+    soil: 93.2,
+    tilt: 6.14,
+    riskScore: 94,
+    riskLevel: "CRITICAL",
+    color: "#C24B3F",
+    elevation: "980m MSL",
+    geology: "Gneissic Bedrock with Deep Colluvium",
+  },
   idukki: {
     id: "idukki",
     name: "Idukki Hill Tracts",
@@ -73,25 +113,11 @@ const ZONES_DATA: Record<
     elevation: "1,200m MSL",
     geology: "Weathered Charnockite & Lateritic Regolith",
   },
-  wayanad: {
-    id: "wayanad",
-    name: "Wayanad Meppadi Slopes",
-    state: "Kerala",
-    node: "WYD-02",
-    rainfall: 168.0,
-    soil: 93.2,
-    tilt: 6.14,
-    riskScore: 94,
-    riskLevel: "CRITICAL",
-    color: "#C24B3F",
-    elevation: "980m MSL",
-    geology: "Gneissic Bedrock with Deep Colluvium",
-  },
   nilgiris: {
     id: "nilgiris",
     name: "Nilgiris Coonoor Ghats",
     state: "Tamil Nadu",
-    node: "NLG-03",
+    node: "NLG-05",
     rainfall: 78.5,
     soil: 64.0,
     tilt: 2.15,
@@ -101,47 +127,117 @@ const ZONES_DATA: Record<
     elevation: "1,850m MSL",
     geology: "Laterite Cap over Granulite",
   },
-  coorg: {
-    id: "coorg",
-    name: "Kodagu (Coorg) Escarpment",
+  uttara_kannada: {
+    id: "uttara_kannada",
+    name: "Uttara Kannada (Ankola/Sirsi)",
     state: "Karnataka",
-    node: "CRG-04",
-    rainfall: 112.3,
-    soil: 76.8,
-    tilt: 3.45,
-    riskScore: 74,
-    riskLevel: "HIGH",
+    node: "UKA-02",
+    rainfall: 135.2,
+    soil: 81.4,
+    tilt: 4.10,
+    riskScore: 81,
+    riskLevel: "CRITICAL",
     color: "#C24B3F",
-    elevation: "1,100m MSL",
-    geology: "Metamorphic Schist & Clay-Rich Subsoil",
+    elevation: "620m MSL",
+    geology: "Coastal Western Ghats Fractured Basalt",
+  },
+  chikkamagaluru: {
+    id: "chikkamagaluru",
+    name: "Chikkamagaluru Charmadi",
+    state: "Karnataka",
+    node: "CHK-01",
+    rainfall: 98.4,
+    soil: 69.8,
+    tilt: 2.80,
+    riskScore: 69,
+    riskLevel: "HIGH",
+    color: "#D6A24E",
+    elevation: "1,450m MSL",
+    geology: "Weathered Hornblende & Banded Iron Formation",
   },
   munnar: {
     id: "munnar",
     name: "Munnar Gap Road",
     state: "Kerala",
-    node: "MNR-05",
+    node: "MNR-07",
     rainfall: 96.2,
-    soil: 71.4,
+    soil: 70.2,
     tilt: 2.90,
     riskScore: 68,
     riskLevel: "HIGH",
-    color: "#C24B3F",
+    color: "#D6A24E",
     elevation: "1,550m MSL",
     geology: "Fractured Hornblende Gneiss",
+  },
+  valparai: {
+    id: "valparai",
+    name: "Valparai & Anamalai Hills",
+    state: "Tamil Nadu",
+    node: "VLP-08",
+    rainfall: 88.0,
+    soil: 66.5,
+    tilt: 2.30,
+    riskScore: 62,
+    riskLevel: "HIGH",
+    color: "#D6A24E",
+    elevation: "1,050m MSL",
+    geology: "Anamalai Granitic Complex",
+  },
+  mahad: {
+    id: "mahad",
+    name: "Mahad & Varandha Ghat",
+    state: "Maharashtra",
+    node: "MHD-09",
+    rainfall: 110.5,
+    soil: 77.5,
+    tilt: 3.50,
+    riskScore: 76,
+    riskLevel: "CRITICAL",
+    color: "#C24B3F",
+    elevation: "820m MSL",
+    geology: "Deccan Traps Layered Basalt Flows",
   },
   shimla: {
     id: "shimla",
     name: "Shimla Bypass Ridge",
     state: "Himachal Pradesh",
-    node: "SHM-06",
+    node: "SHM-10",
     rainfall: 44.0,
-    soil: 42.1,
+    soil: 38.2,
     tilt: 0.95,
     riskScore: 28,
     riskLevel: "LOW",
     color: "#6FA377",
     elevation: "2,200m MSL",
     geology: "Jutogh Metasedimentary Series",
+  },
+  chamoli: {
+    id: "chamoli",
+    name: "Chamoli & Joshimath Corridor",
+    state: "Uttarakhand",
+    node: "CHM-11",
+    rainfall: 62.0,
+    soil: 54.0,
+    tilt: 2.10,
+    riskScore: 54,
+    riskLevel: "MEDIUM",
+    color: "#D6A24E",
+    elevation: "1,890m MSL",
+    geology: "Main Central Thrust Shear Zone",
+  },
+  darjeeling: {
+    id: "darjeeling",
+    name: "Darjeeling & Kurseong Slopes",
+    state: "West Bengal",
+    node: "DJE-06",
+    rainfall: 104.0,
+    soil: 76.8,
+    tilt: 3.80,
+    riskScore: 75,
+    riskLevel: "CRITICAL",
+    color: "#C24B3F",
+    elevation: "2,050m MSL",
+    geology: "Darjeeling Gneiss & Mica Schist",
   },
 };
 
@@ -156,6 +252,8 @@ export default function AiChatbotPage() {
   const currentZone = ZONES_DATA[selectedZoneKey];
 
   const authMeQuery = trpc.auth.me.useQuery();
+  const quotaQuery = trpc.chat.quota.useQuery(undefined, { refetchInterval: 15000 });
+  const quota = quotaQuery.data?.quota;
   const { triggerCriticalAlert, simulateCriticalAlert } = useCriticalRiskToast();
 
   const handleZoneChange = (key: ZoneKey) => {
@@ -226,20 +324,20 @@ export default function AiChatbotPage() {
             <div className="h-4 w-px bg-stone-700/60 hidden sm:block" />
 
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-sm">
-                <Bot size={18} />
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/25 to-amber-600/10 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-sm shrink-0">
+                <Sparkles size={17} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-sm font-bold tracking-wide text-stone-100">
-                    Landsora Gemini AI Intelligence
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xs sm:text-sm font-bold tracking-wide text-stone-100 font-mono">
+                    AI COMPANION
                   </h1>
-                  <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                     GEMINI 3.5 FLASH
                   </span>
                 </div>
-                <p className="text-[11px] text-stone-400 hidden md:block">
-                  Multi-Turn Geotechnical Copilot, Google Search & Maps Grounding
+                <p className="text-[10.5px] text-stone-400 hidden sm:block">
+                  Geotechnical Decision Support, IMD Grounding & Evacuation Navigation
                 </p>
               </div>
             </div>
@@ -267,19 +365,33 @@ export default function AiChatbotPage() {
               selectedZone={selectedZoneKey}
             />
 
-            {/* Google Account Authentication Status */}
+            {/* Google Account Authentication Status & Quota */}
             {authMeQuery.data?.user ? (
-              <button
-                type="button"
-                onClick={() => setGoogleAuthModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 text-xs font-medium text-emerald-300 transition-colors shadow-sm"
-                title={`Connected Google Account: ${authMeQuery.data.user.email || authMeQuery.data.user.name}`}
-              >
-                <ShieldCheck size={14} className="text-emerald-400" />
-                <span className="font-mono text-[11px]">
-                  {authMeQuery.data.user.email?.split("@")[0] || authMeQuery.data.user.name || "GOOGLE VERIFIED"}
-                </span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGoogleAuthModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 text-xs font-medium text-emerald-300 transition-colors shadow-sm"
+                  title={`Connected Google Account: ${authMeQuery.data.user.email || authMeQuery.data.user.name}`}
+                >
+                  <ShieldCheck size={14} className="text-emerald-400" />
+                  <span className="font-mono text-[11px]">
+                    {authMeQuery.data.user.email?.split("@")[0] || authMeQuery.data.user.name || "GOOGLE VERIFIED"}
+                  </span>
+                </button>
+                {quota?.isUnlimited ? (
+                  <span className="px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono">
+                    🛡️ UNLIMITED
+                  </span>
+                ) : (
+                  <span
+                    className="px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono"
+                    title={`Daily limit: ${quota?.limit || 30} queries. Resets in ${quota?.resetsInHours || 24}h`}
+                  >
+                    ⚡ {quota?.remaining ?? 30}/{quota?.limit ?? 30} QUOTA
+                  </span>
+                )}
+              </div>
             ) : (
               <button
                 type="button"
@@ -373,68 +485,68 @@ export default function AiChatbotPage() {
       </div>
 
       {/* 3. AI SUITE WORKSPACE & TABS */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex-1 flex flex-col w-full">
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-1.5 rounded-xl bg-stone-900/90 border border-stone-800">
-          <div className="flex flex-wrap items-center gap-1.5">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 flex-1 flex flex-col w-full">
+        {/* Navigation Tabs with Smooth Horizontal Scroll on Mobile */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-4 p-1.5 rounded-xl bg-stone-900/90 border border-stone-800">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none whitespace-nowrap">
             <button
               type="button"
               onClick={() => setActiveTab("CHATBOT")}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+              className={`px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${
                 activeTab === "CHATBOT"
                   ? "bg-amber-500 text-stone-950 shadow-md shadow-amber-500/20"
                   : "text-stone-300 hover:text-stone-100 hover:bg-stone-800/70"
               }`}
             >
-              <Bot size={15} />
-              <span>GEMINI COPILOT (MULTI-TURN)</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-black/20 rounded">PRO / FLASH</span>
+              <Sparkles size={14} />
+              <span>AI COMPANION</span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 bg-black/25 rounded">MULTI-TURN</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab("SEARCH_GROUNDING")}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+              className={`px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${
                 activeTab === "SEARCH_GROUNDING"
                   ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
                   : "text-stone-300 hover:text-stone-100 hover:bg-stone-800/70"
               }`}
             >
-              <Search size={15} />
-              <span>SEARCH GROUNDING (IMD / NDMA)</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-black/20 rounded">LIVE CITATIONS</span>
+              <Search size={14} />
+              <span>SEARCH GROUNDING (IMD)</span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 bg-black/25 rounded">CITATIONS</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab("MAPS_GROUNDING")}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+              className={`px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${
                 activeTab === "MAPS_GROUNDING"
                   ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
                   : "text-stone-300 hover:text-stone-100 hover:bg-stone-800/70"
               }`}
             >
-              <MapPin size={15} />
-              <span>MAPS GROUNDING (TERRAIN & PASSES)</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-black/20 rounded">GHAT CORRIDORS</span>
+              <MapPin size={14} />
+              <span>MAPS GROUNDING (PASSES)</span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 bg-black/25 rounded">CORRIDORS</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab("RISK_SYNTHESIS")}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+              className={`px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${
                 activeTab === "RISK_SYNTHESIS"
                   ? "bg-amber-600 text-white shadow-md shadow-amber-600/20"
                   : "text-stone-300 hover:text-stone-100 hover:bg-stone-800/70"
               }`}
             >
-              <Activity size={15} />
-              <span>SLOPE STABILITY EXPLANATION</span>
+              <Activity size={14} />
+              <span>SLOPE STABILITY</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-mono text-stone-400 px-2">
-            <span>LOCATION: <b className="text-stone-200">{currentZone.name}</b> ({currentZone.state})</span>
+          <div className="flex items-center gap-2 text-[10.5px] font-mono text-stone-400 px-2 shrink-0">
+            <span>LOCATION: <b className="text-stone-200">{currentZone.name}</b></span>
           </div>
         </div>
 
