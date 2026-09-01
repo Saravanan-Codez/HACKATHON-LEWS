@@ -1,10 +1,10 @@
-# LEWS — Landslide Early Warning System
+# Landsora — IoT Landslide Early Warning & Risk Monitoring System
 
 <div align="center">
 
-![LEWS Logo](client/public/assets/lews-logo.png)
+![Landsora Logo](client/public/assets/lews-logo.png)
 
-### **Hyperlocal Landslide Risk Monitoring & Decision Support Console**
+### **Hyperlocal IoT Telemetry, Deterministic Anomaly Validation & AI Decision Support Console**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
@@ -21,20 +21,23 @@
 
 ## 📖 Overview
 
-**LEWS (Landslide Early Warning System)** is a full-stack, responsive geological-monitoring dashboard prototype. Built for emergency planners, field researchers, and disaster-management teams, LEWS bridges the gap between broad regional meteorological forecasts and the hyperlocal slope conditions of vulnerable hillsides and villages.
+**Landsora (Landslide Early Warning & Risk Monitoring System)** is an end-to-end, IoT-aware decision-support prototype. Built for emergency planners, field researchers, and disaster-management teams, Landsora bridges the gap between broad regional meteorological forecasts and hyperlocal slope conditions on vulnerable hillsides.
 
-The application follows the **"Surveyor's Field Console"** design philosophy — pairing mineral basalt surfaces, cartographic textures, and high-legibility telemetry to present an operational picture that is calm, accountable, and actionable.
+The system enforces a non-negotiable safety principle: **Physical sensors, deterministic validation rules, physical range checks, and explicit risk models compute the risk level; AI (NVIDIA/open models) strictly explains results, translates alerts, and assists users without hallucinating safety-critical outcomes.**
 
 ---
 
 ## ⚡ Core Capabilities
 
 - **🛰️ Live NASA EONET Event Ingestion**: Real-time integration with NASA's Earth Observatory Natural Event Tracker (v3), normalized, cached for 5 minutes, and displayed alongside simulated slope telemetry.
+- **🛡️ Deterministic Data Validation & Anomaly Quarantine**: 5-stage validation pipeline (Physical ranges, sudden spike isolation, clock drift, flatlines, cross-source checks) with auditable Data Confidence Scoring (0–100%).
 - **📊 Transparent 4-Factor Risk Engine**: Explainable 0–100 risk scoring combining Rainfall Intensity, Slope Tilt/Terrain, Historical Landslide Baseline, and Recent Reported Events.
 - **🗺️ Interactive Geological Terrain Map**: Custom India mainland coordinate projection (8°N–36°N, 68°E–96°E) with monitored zone telemetry markers, EONET events, and click-to-analyze coordinates.
-- **🌐 5-Language Alert Preview Engine**: Incident notification templates for English, Tamil (தமிழ்), Telugu (తెలుగు), Kannada (ಕನ್ನಡ), and Malayalam (മലയാളം).
-- **🤖 Contextual AI Risk Intelligence**: Structured explanation layer that translates environmental signals into plain-language assessments, contributing factors, and safety protocols without hallucinating measurements.
+- **🌐 5-Language Alert Preview Engine**: Pre-compiled multilingual templates for English, Tamil (தமிழ்), Telugu (తెలుగు), Kannada (ಕನ್ನಡ), and Malayalam (മലയാളം).
+- **🤖 Contextual AI Risk Intelligence**: Structured explanation layer that translates environmental signals into plain-language assessments, contributing factors, and safety protocols.
 - **📱 Citizen & Field Incident Queue**: Offline-ready citizen reporting workflow capturing slope cracks, rockfalls, blocked corridors, and photo attachments with geolocation.
+- **🔌 ESP32 IoT Device Health & Sensor Registry**: Live telemetry inspector for battery voltage, WiFi RSSI dBm, free heap, uptime, and connected sensor status.
+- **🧪 7-Scenario Simulation Sandbox**: 1-click test suite for Normal, Persistent Rain, Extreme Storm, Quarantined Tilt Spikes, API Delays, Low Battery, and Operator Approval.
 ---
 
 ## 👥 Dual-Audience Architecture: Public vs. Authority POV

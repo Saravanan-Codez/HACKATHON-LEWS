@@ -1,4 +1,4 @@
-/* LEWS Marketing Landing Page: Persuasive, outcome-first sales narrative and trust foundation */
+/* Landsora Marketing Landing Page: Persuasive, outcome-first sales narrative and trust foundation */
 import { useState } from "react";
 import { Link } from "wouter";
 import ProductPreview from "@/components/landing/ProductPreview";
@@ -33,8 +33,11 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { notificationLanguages, type NotificationLanguage } from "@/lib/notificationTranslations";
+
 export default function LandingPage() {
   const [activeTab, setActiveTab] = useState<"engine" | "alerts" | "roads">("engine");
+  const [selectedLandingLang, setSelectedLandingLang] = useState<NotificationLanguage>("EN");
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -45,9 +48,9 @@ export default function LandingPage() {
       {/* 1. MARKETING NAVBAR */}
       <header className="marketing-navbar">
         <div className="marketing-nav-brand">
-          <img src="/assets/lews-logo.png" alt="LEWS contour mark" className="marketing-nav-logo" />
+          <img src="/assets/lews-logo.png" alt="Landsora contour mark" className="marketing-nav-logo" />
           <div>
-            <div className="marketing-brand-name">LEWS</div>
+            <div className="marketing-brand-name">Landsora</div>
             <div className="marketing-brand-sub">LANDSLIDE EARLY WARNING SYSTEM</div>
           </div>
         </div>
@@ -57,11 +60,26 @@ export default function LandingPage() {
           <button onClick={() => scrollTo("solution")} className="nav-link-btn">Solution</button>
           <button onClick={() => scrollTo("features")} className="nav-link-btn">Features</button>
           <button onClick={() => scrollTo("how-it-works")} className="nav-link-btn">How It Works</button>
-          <button onClick={() => scrollTo("differentiation")} className="nav-link-btn">Why LEWS</button>
+          <button onClick={() => scrollTo("differentiation")} className="nav-link-btn">Why Landsora</button>
           <button onClick={() => scrollTo("faq")} className="nav-link-btn">FAQ</button>
         </nav>
 
         <div className="marketing-nav-actions">
+          {/* 1-Click Language Switcher */}
+          <div className="landing-lang-strip" aria-label="1-Click language selector">
+            <Globe2 size={12} className="text-amber-400" />
+            {notificationLanguages.map((l) => (
+              <button
+                key={l.code}
+                className={`landing-lang-btn ${selectedLandingLang === l.code ? "active" : ""}`}
+                onClick={() => setSelectedLandingLang(l.code)}
+                title={`Switch preview to ${l.label} (${l.nativeLabel})`}
+              >
+                {l.code}
+              </button>
+            ))}
+          </div>
+
           <Link href="/login" className="nav-auth-link">
             Sign In
           </Link>
@@ -87,7 +105,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="hero-lead-text">
-              Regional meteorological bulletins alert entire districts too late. <strong>LEWS</strong> monitors specific vulnerable hillsides with continuous soil moisture, slope tilt, and rainfall telemetry — delivering explainable risk scores and multilingual evacuation advisories to emergency planners and village panchayats.
+              Regional meteorological bulletins alert entire districts too late. <strong>Landsora</strong> monitors specific vulnerable hillsides with continuous soil moisture, slope tilt, and rainfall telemetry — delivering explainable risk scores and multilingual evacuation advisories to emergency planners and village panchayats.
             </p>
 
             <div className="hero-cta-group">
@@ -257,7 +275,7 @@ export default function LandingPage() {
               <div className="comparison-col lews-col">
                 <div className="comparison-col-header">
                   <ShieldCheck size={18} className="text-emerald-400" />
-                  <span>WITH LEWS HYPERLOCAL FIELD CONSOLE</span>
+                  <span>WITH Landsora HYPERLOCAL FIELD CONSOLE</span>
                 </div>
                 <div className="comparison-steps">
                   <div className="step-item">
@@ -303,7 +321,7 @@ export default function LandingPage() {
             </div>
 
             <h2 className="section-title">
-              Meet LEWS:<br />
+              Meet Landsora:<br />
               <em>The Surveyor's Field Console.</em>
             </h2>
 
@@ -518,7 +536,7 @@ export default function LandingPage() {
             </div>
 
             <h2 className="section-title">
-              Why LEWS is different.
+              Why Landsora is different.
             </h2>
 
             <div className="diff-table-container">
@@ -528,7 +546,7 @@ export default function LandingPage() {
                     <th>Capability</th>
                     <th>Regional Weather Bulletins</th>
                     <th>Industrial SCADA Systems</th>
-                    <th className="highlight-header">LEWS Field Console</th>
+                    <th className="highlight-header">Landsora Field Console</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -584,16 +602,16 @@ export default function LandingPage() {
             <div className="faq-layout-grid">
               <Accordion type="single" collapsible className="marketing-faq-accordion">
                 <AccordionItem value="what-is-lews" className="faq-acc-item">
-                  <AccordionTrigger>What is LEWS and who is it designed for?</AccordionTrigger>
+                  <AccordionTrigger>What is Landsora and who is it designed for?</AccordionTrigger>
                   <AccordionContent>
-                    LEWS (Landslide Early Warning System) is a decision-support prototype built for disaster management authorities (NDMA/SDMA), district emergency operations centers, village panchayats, and geotechnical field researchers. It brings hyperlocal slope telemetry, explainable risk calculations, and evacuation protocols into a single, unified operating console.
+                    Landsora (Landslide Early Warning System) is a decision-support prototype built for disaster management authorities (NDMA/SDMA), district emergency operations centers, village panchayats, and geotechnical field researchers. It brings hyperlocal slope telemetry, explainable risk calculations, and evacuation protocols into a single, unified operating console.
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="is-it-official" className="faq-acc-item">
-                  <AccordionTrigger>Is LEWS an official certified government warning system?</AccordionTrigger>
+                  <AccordionTrigger>Is Landsora an official certified government warning system?</AccordionTrigger>
                   <AccordionContent>
-                    No. LEWS is currently an open-source research and decision-support prototype. It is engineered to complement approved regional forecasting frameworks (such as Geological Survey of India / NDMA guidelines) and demonstrate how a hyperlocal last-mile telemetry layer can function. In real emergencies, always follow directives from district administration and emergency services.
+                    No. Landsora is currently an open-source research and decision-support prototype. It is engineered to complement approved regional forecasting frameworks (such as Geological Survey of India / NDMA guidelines) and demonstrate how a hyperlocal last-mile telemetry layer can function. In real emergencies, always follow directives from district administration and emergency services.
                   </AccordionContent>
                 </AccordionItem>
 
@@ -614,7 +632,7 @@ export default function LandingPage() {
                 <AccordionItem value="data-privacy-and-license" className="faq-acc-item">
                   <AccordionTrigger>What is the software license and how can we deploy it?</AccordionTrigger>
                   <AccordionContent>
-                    LEWS is released under the permissive MIT License. You are free to fork the repository, connect custom LoRaWAN/NB-IoT sensor bridges, or integrate regional GIS feeds. Detailed setup instructions for Linux, macOS, and Windows are provided in the repository's README and ARCHITECTURE documentation.
+                    Landsora is released under the permissive MIT License. You are free to fork the repository, connect custom LoRaWAN/NB-IoT sensor bridges, or integrate regional GIS feeds. Detailed setup instructions for Linux, macOS, and Windows are provided in the repository's README and ARCHITECTURE documentation.
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -625,7 +643,7 @@ export default function LandingPage() {
                   <span>TRANSPARENCY GUARANTEE</span>
                 </div>
                 <p>
-                  Every measurement, formula, and source status in LEWS remains visible in the console. The system never conceals data limitations or invents certified predictions.
+                  Every measurement, formula, and source status in Landsora remains visible in the console. The system never conceals data limitations or invents certified predictions.
                 </p>
                 <Link href="/dashboard" className="sidebar-explore-btn">
                   <span>Open Field Console</span>
@@ -663,7 +681,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="final-cta-badge">
-                <img src="/assets/lews-logo.png" alt="LEWS contour mark" />
+                <img src="/assets/lews-logo.png" alt="Landsora contour mark" />
                 <span>SYSTEM ONLINE · VERSION 0.1</span>
               </div>
             </div>
@@ -676,9 +694,9 @@ export default function LandingPage() {
         <div className="footer-top">
           <div className="footer-brand-col">
             <div className="footer-brand-header">
-              <img src="/assets/lews-logo.png" alt="LEWS logo" />
+              <img src="/assets/lews-logo.png" alt="Landsora logo" />
               <div>
-                <strong>LEWS</strong>
+                <strong>Landsora</strong>
                 <span>LANDSLIDE EARLY WARNING SYSTEM</span>
               </div>
             </div>
@@ -700,7 +718,7 @@ export default function LandingPage() {
 
           <div className="footer-nav-col">
             <h4>DEVELOPER & DOCS</h4>
-            <a href="https://github.com/Saravanan-Codez/HACKATHON-LEWS" target="_blank" rel="noreferrer">
+            <a href="https://github.com/Saravanan-Codez/HACKATHON-Landsora" target="_blank" rel="noreferrer">
               GitHub Repository
             </a>
             <a href="https://eonet.gsfc.nasa.gov/docs/v3" target="_blank" rel="noreferrer">

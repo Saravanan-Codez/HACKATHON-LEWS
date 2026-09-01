@@ -33,9 +33,9 @@ export default function LoginPage() {
         <div className="auth-card panel">
           <div className="auth-card-header">
             <div className="auth-brand-logo">
-              <img src="/assets/lews-logo.png" alt="LEWS logo" />
+              <img src="/assets/lews-logo.png" alt="Landsora logo" />
             </div>
-            <h2>Sign in to LEWS</h2>
+            <h2>Sign in to Landsora</h2>
             <p>Access the Surveyor's Field Console & Decision Intelligence</p>
           </div>
 

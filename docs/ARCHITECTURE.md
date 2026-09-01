@@ -1,10 +1,10 @@
-# LEWS System Architecture
+# Landsora — System Architecture & Data Engineering
 
 ## Overview
 
-**LEWS (Landslide Early Warning System)** is a full-stack, modular disaster-management decision-support application built with React 19, Vite, Express, tRPC, and TypeScript.
+**Landsora (Landslide Early Warning and Risk Monitoring System)** is an IoT-enabled, full-stack disaster-management decision-support application built with React 19, Vite, Express, tRPC, and TypeScript.
 
-It provides a transparent, explainable 4-factor risk scoring engine combined with live NASA EONET event feeds, multilingual alert previews, and simulated sensor channels.
+It integrates a 5-stage deterministic validation & anomaly quarantine pipeline, a transparent 4-factor risk scoring engine, live NASA EONET event feeds, multilingual alert previews in 5 Indian languages, and ESP32 field telemetry streaming.
 
 ---
 
@@ -12,12 +12,12 @@ It provides a transparent, explainable 4-factor risk scoring engine combined wit
 
 ```
 +-----------------------------------------------------------------------------------+
-|                                CLIENT LAYER (React 19 + Vite)                     |
+|                           CLIENT LAYER (React 19 + Vite)                          |
 |                                                                                   |
 |  +-----------------------+  +------------------------+  +-----------------------+ |
 |  |  Surveyor's Console   |  |   Live Terrain GIS     |  |   Decision Support    | |
 |  |  (Zone Telemetry,     |  |   (India Projection,   |  |   (Executive Summary, | |
-|  |   Sparks, Controls)   |  |    EONET Markers)      |  |    Roads, Forecast)   | |
+|  |   Sparks, POV Toggle) |  |    EONET Markers)      |  |    Roads, Forecast)   | |
 |  +-----------------------+  +------------------------+  +-----------------------+ |
 |             |                            |                           |            |
 |  +------------------------------------------------------------------------------+ |
@@ -36,16 +36,16 @@ It provides a transparent, explainable 4-factor risk scoring engine combined wit
 |  +------------------------------------------------------------------------------+ |
 |  |                               App Router (tRPC)                              | |
 |  |  - landslides.list / historicalLayer                                         | |
+|  |  - validation.validate / quarantineList                                      | |
+|  |  - iot.deviceHealth / alerts.operatorApproval                                | |
 |  |  - risk.score / risk.aiAnalysis / risk.assistant                             | |
 |  |  - platform.capabilities                                                     | |
 |  +------------------------------------------------------------------------------+ |
-|          |                            |                             |             |
-|  +-------v--------------+    +--------v-------------+    +----------v----------+  |
-|  | NASA EONET Service   |    | LEWS Risk Engine     |    | AI Risk Intel &     |  |
-|  | - Fetch & Normalize  |    | - 4-Factor Weighted  |    | Context Assistant   |  |
-|  | - 5-min Memory Cache |    | - Deterministic Tier |    | - Built-in Proxy    |  |
-|  | - Outage Fallback    |    | - 0-100 Score        |    | - Safe Disclaimers  |  |
-|  +----------------------+    +----------------------+    +---------------------+  |
+|          |                  |                  |                    |             |
+|  +-------v------+   +-------v--------+   +-----v----------+   +---------v------+  |
+|  | NASA EONET   |   | Anomaly Check  |   | Landsora Risk  |   | AI Risk Intel  |  |
+|  | v3 Service   |   | & Quarantine   |   | Scoring Engine |   | & Assistant    |  |
+|  +--------------+   +----------------+   +----------------+   +----------------+  |
 +-----------------------------------------------------------------------------------+
 ```
 

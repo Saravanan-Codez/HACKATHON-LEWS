@@ -186,6 +186,8 @@ export default defineConfig({
         manualChunks: {
           vendor: ["react", "react-dom"],
           trpc: ["@trpc/client", "@trpc/react-query", "@tanstack/react-query"],
+          wouter: ["wouter"],
+          radix: ["@radix-ui/react-accordion", "@radix-ui/react-slot", "@radix-ui/react-tooltip"],
           icons: ["lucide-react"],
         },
       },

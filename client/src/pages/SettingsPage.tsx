@@ -1,4 +1,4 @@
-/* LEWS Console Settings: Operational parameters, language preferences, and cache controls */
+/* Landsora Console Settings: Operational parameters, language preferences, and cache controls */
 import { useState } from "react";
 import { Link } from "wouter";
 import { ArrowLeft, Check, Database, Globe2, Radio, Save, Shield, Sliders, Trash2, Wifi } from "lucide-react";

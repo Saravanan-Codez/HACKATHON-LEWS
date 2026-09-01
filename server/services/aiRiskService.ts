@@ -2,7 +2,7 @@ import { invokeLLM } from "../_core/llm";
 
 export const supportedRiskLevels = ["LOW", "MODERATE", "HIGH", "CRITICAL"] as const;
 export type RiskLevel = (typeof supportedRiskLevels)[number];
-export type AiLanguage = "EN" | "TA" | "TE" | "KN" | "ML";
+export type AiLanguage = "EN" | "HI" | "TA" | "TE" | "KN" | "ML";
 
 export type AiRiskInput = {
   location: string;
@@ -33,7 +33,7 @@ export type AiRiskAssessment = {
   generatedAt: string;
 };
 
-const safetyWarning = (language: AiLanguage) => language === "TA" ? "AI கிடைக்கும் சுற்றுச்சூழல் தரவுகளை மட்டுமே விளக்குகிறது. அவசரநிலைகளில் அதிகாரப்பூர்வ பேரிடர் மேலாண்மை அதிகாரிகளின் அறிவுறுத்தல்களை எப்போதும் பின்பற்றவும்." : language === "TE" ? "AI అందుబాటులో ఉన్న పర్యావరణ డేటాను మాత్రమే వివరిస్తుంది. అత్యవసర పరిస్థితుల్లో అధికారిక విపత్తు నిర్వహణ అధికారుల సూచనలను ఎల్లప్పుడూ పాటించండి." : language === "KN" ? "AI ಲಭ್ಯವಿರುವ ಪರಿಸರ ಮಾಹಿತಿಯನ್ನು ಮಾತ್ರ ಅರ್ಥೈಸುತ್ತದೆ. ತುರ್ತು ಸಂದರ್ಭಗಳಲ್ಲಿ ಅಧಿಕೃತ ವಿಪತ್ತು ನಿರ್ವಹಣಾ ಅಧಿಕಾರಿಗಳ ಸೂಚನೆಗಳನ್ನು ಯಾವಾಗಲೂ ಪಾಲಿಸಿ." : language === "ML" ? "ലഭ്യമായ പരിസ്ഥിതി ഡാറ്റയെ AI വ്യാഖ്യാനിക്കുക മാത്രമാണ് ചെയ്യുന്നത്. അടിയന്തര സാഹചര്യങ്ങളിൽ ഔദ്യോഗിക ദുരന്തനിവാരണ അധികാരികളുടെ നിർദ്ദേശങ്ങൾ എപ്പോഴും പാലിക്കുക." : "AI provides an interpretation of available environmental data. Official disaster-management authorities should always be followed during emergencies.";
+const safetyWarning = (language: AiLanguage) => language === "HI" ? "AI केवल उपलब्ध पर्यावरणीय आंकड़ों की व्याख्या करता है। आपात स्थिति में हमेशा आधिकारिक आपदा प्रबंधन अधिकारियों के निर्देशों का पालन करें।" : language === "TA" ? "AI கிடைக்கும் சுற்றுச்சூழல் தரவுகளை மட்டுமே விளக்குகிறது. அவசரநிலைகளில் அதிகாரப்பூர்வ பேரிடர் மேலாண்மை அதிகாரிகளின் அறிவுறுத்தல்களை எப்போதும் பின்பற்றவும்." : language === "TE" ? "AI అందుబాటులో ఉన్న పర్యావరణ డేటాను మాత్రమే వివరిస్తుంది. అత్యవసర పరిస్థితుల్లో అధికారిక విపత్తు నిర్వహణ అధికారుల సూచనలను ఎల్లప్పుడూ పాటించండి." : language === "KN" ? "AI ಲಭ್ಯವಿರುವ ಪರಿಸರ ಮಾಹಿತಿಯನ್ನು ಮಾತ್ರ ಅರ್ಥೈಸುತ್ತದೆ. ತುರ್ತು ಸಂದರ್ಭಗಳಲ್ಲಿ ಅಧಿಕೃತ ವಿಪತ್ತು ನಿರ್ವಹಣಾ ಅಧಿಕಾರಿಗಳ ಸೂಚನೆಗಳನ್ನು ಯಾವಾಗಲೂ ಪಾಲಿಸಿ." : language === "ML" ? "ലഭ്യമായ പരിസ്ഥിതി ഡാറ്റയെ AI വ്യാഖ്യാനിക്കുക മാത്രമാണ് ചെയ്യുന്നത്. അടിയന്തര സാഹചര്യങ്ങളിൽ ഔദ്യോഗിക ദുരന്തനിവാരണ അധികാരികളുടെ നിർദ്ദേശങ്ങൾ എപ്പോഴും പാലിക്കുക." : "AI provides an interpretation of available environmental data. Official disaster-management authorities should always be followed during emergencies.";
 
 const insufficientData = (language: AiLanguage): AiRiskAssessment => ({
   provider: "BUILT_IN_SERVER_LLM",
