@@ -143,79 +143,91 @@ export function InteractiveGisMap({
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
 
-    // Center on India mountain systems with deep 22x zoom support
-    const map = L.map(mapContainerRef.current, {
-      center: [18.5, 77.0],
-      zoom: 6,
-      zoomControl: false,
-      attributionControl: false,
-      minZoom: 3,
-      maxZoom: 22,
-    });
-
-    // Tile Layer with 22x upscaled deep zoom
-    const cfg = BASEMAP_CONFIGS["SATELLITE"];
-    const tileLayer = L.tileLayer(cfg.url, {
-      maxNativeZoom: cfg.maxNativeZoom,
-      maxZoom: 22,
-      subdomains: cfg.subdomains || "abc",
-    }).addTo(map);
-
-    tileLayerRef.current = tileLayer;
-
-    // Layer groups for clean management
-    const markersGroup = L.layerGroup().addTo(map);
-    const nasaGroup = L.layerGroup().addTo(map);
-    markersLayerRef.current = markersGroup;
-    nasaLayerRef.current = nasaGroup;
-
-    // Track mouse coordinates
-    map.on("mousemove", (e: L.LeafletMouseEvent) => {
-      setMouseCoords({
-        lat: Number(e.latlng.lat.toFixed(4)),
-        lng: Number(e.latlng.lng.toFixed(4)),
-        zoom: map.getZoom(),
+    try {
+      // Center on India mountain systems with deep 22x zoom support
+      const map = L.map(mapContainerRef.current, {
+        center: [18.5, 77.0],
+        zoom: 6,
+        zoomControl: false,
+        attributionControl: false,
+        minZoom: 3,
+        maxZoom: 22,
       });
-    });
 
-    // Map click for custom analysis pin
-    map.on("click", (e: L.LeafletMouseEvent) => {
-      const lat = Number(e.latlng.lat.toFixed(4));
-      const lng = Number(e.latlng.lng.toFixed(4));
+      // Tile Layer with 22x upscaled deep zoom
+      const cfg = BASEMAP_CONFIGS["SATELLITE"];
+      const tileLayer = L.tileLayer(cfg.url, {
+        maxNativeZoom: cfg.maxNativeZoom,
+        maxZoom: 22,
+        subdomains: cfg.subdomains || "abc",
+      });
 
-      // Calculate simulated risk based on proximity to mountain stations
-      let minDist = 999;
-      let baseRisk = 45;
-      zones.forEach((z) => {
-        const d = Math.sqrt(Math.pow(z.lat - lat, 2) + Math.pow(z.lng - lng, 2));
-        if (d < minDist) {
-          minDist = d;
-          baseRisk = z.riskScore;
+      if (tileLayer) {
+        tileLayer.addTo(map);
+      }
+
+      tileLayerRef.current = tileLayer;
+
+      // Layer groups for clean management
+      const markersGroup = L.layerGroup().addTo(map);
+      const nasaGroup = L.layerGroup().addTo(map);
+      markersLayerRef.current = markersGroup;
+      nasaLayerRef.current = nasaGroup;
+
+      // Track mouse coordinates
+      map.on("mousemove", (e: L.LeafletMouseEvent) => {
+        setMouseCoords({
+          lat: Number(e.latlng.lat.toFixed(4)),
+          lng: Number(e.latlng.lng.toFixed(4)),
+          zoom: map.getZoom(),
+        });
+      });
+
+      // Map click for custom analysis pin
+      map.on("click", (e: L.LeafletMouseEvent) => {
+        const lat = Number(e.latlng.lat.toFixed(4));
+        const lng = Number(e.latlng.lng.toFixed(4));
+
+        // Calculate simulated risk based on proximity to mountain stations
+        let minDist = 999;
+        let baseRisk = 45;
+        zones.forEach((z) => {
+          const d = Math.sqrt(Math.pow(z.lat - lat, 2) + Math.pow(z.lng - lng, 2));
+          if (d < minDist) {
+            minDist = d;
+            baseRisk = z.riskScore;
+          }
+        });
+        const simulatedScore = Math.min(98, Math.max(12, Math.round(baseRisk - minDist * 8 + (Math.sin(lat * 10) * 8))));
+
+        setAnalysisPin({ lat, lng, risk: simulatedScore });
+
+        if (onMapClickPoint) {
+          onMapClickPoint({ latitude: lat, longitude: lng, simulatedScore });
+        }
+        if (onAnalysisPinSelect) {
+          onAnalysisPinSelect({ lat, lng, simulatedScore });
         }
       });
-      const simulatedScore = Math.min(98, Math.max(12, Math.round(baseRisk - minDist * 8 + (Math.sin(lat * 10) * 8))));
 
-      setAnalysisPin({ lat, lng, risk: simulatedScore });
+      mapInstanceRef.current = map;
 
-      if (onMapClickPoint) {
-        onMapClickPoint({ latitude: lat, longitude: lng, simulatedScore });
-      }
-      if (onAnalysisPinSelect) {
-        onAnalysisPinSelect({ lat, lng, simulatedScore });
-      }
-    });
+      // Trigger resize after layout settle
+      setTimeout(() => {
+        try {
+          map.invalidateSize();
+        } catch {
+          // no-op: some browser contexts block map invalidation during load
+        }
+      }, 200);
 
-    mapInstanceRef.current = map;
-
-    // Trigger resize after layout settle
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 200);
-
-    return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-    };
+      return () => {
+        map.remove();
+        mapInstanceRef.current = null;
+      };
+    } catch (error) {
+      console.warn("Leaflet map failed to initialize; falling back to static dashboard mode.", error);
+    }
   }, []);
 
   // Update Basemap Tiles when changed
@@ -223,18 +235,26 @@ export function InteractiveGisMap({
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
+    try {
+      if (tileLayerRef.current) {
+        map.removeLayer(tileLayerRef.current);
+      }
+
+      const cfg = BASEMAP_CONFIGS[basemap];
+      const newTile = L.tileLayer(cfg.url, {
+        maxNativeZoom: cfg.maxNativeZoom,
+        maxZoom: 22,
+        subdomains: cfg.subdomains || "abc",
+      });
+
+      if (newTile) {
+        newTile.addTo(map);
+      }
+
+      tileLayerRef.current = newTile;
+    } catch (error) {
+      console.warn("Basemap update failed; continuing with the current map layer.", error);
     }
-
-    const cfg = BASEMAP_CONFIGS[basemap];
-    const newTile = L.tileLayer(cfg.url, {
-      maxNativeZoom: cfg.maxNativeZoom,
-      maxZoom: 22,
-      subdomains: cfg.subdomains || "abc",
-    }).addTo(map);
-
-    tileLayerRef.current = newTile;
   }, [basemap]);
 
   // Render & Update Station Markers
