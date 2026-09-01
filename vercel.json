@@ -1,6 +1,15 @@
 {
-  "framework": "vite",
   "buildCommand": "pnpm build",
   "outputDirectory": "dist/public",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
