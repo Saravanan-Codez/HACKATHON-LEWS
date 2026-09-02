@@ -1,10 +1,33 @@
 /* Landsora Surveyor's Field Console — basalt surfaces, limestone type, cartographic evidence, calm urgency. */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Sans+Kannada:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&family=Noto+Sans+Oriya:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700&family=Noto+Sans+Gurmukhi:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Sans+Kannada:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&family=Noto+Sans+Oriya:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Noto+Serif:wght@400;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @custom-variant dark (&:is(.dark *));
-:root{--bg:#101719;--panel:#172225;--panel2:#1D2B2F;--line:#2C3B40;--line-strong:#3D5056;--text:#F4EEDC;--muted:#A5B8B0;--ochre:#D6A24E;--stable:#6FA377;--critical:#C24B3F;--teal:#84A6A0;--cyan:#6AD6C4;--radius:3px;--ease-out:cubic-bezier(.23,1,.32,1);--font-display:'Fraunces',Georgia,serif;--font-body:'Inter','Noto Sans','Noto Sans Devanagari','Noto Sans Kannada','Noto Sans Telugu','Noto Sans Tamil','Noto Sans Malayalam','Noto Sans Bengali','Noto Sans Gujarati','Noto Sans Gurmukhi','Noto Sans Oriya','Noto Sans Arabic','Noto Sans JP','Noto Sans SC','Noto Sans KR','Noto Sans Thai',system-ui,-apple-system,sans-serif;--font-mono:'IBM Plex Mono',monospace}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:13px;line-height:1.5}button,a{font:inherit}button{color:inherit}.app-shell{overflow:hidden;background:var(--bg)}
+:root {
+  --bg: #101719;
+  --panel: #172225;
+  --panel2: #1D2B2F;
+  --line: #2C3B40;
+  --line-strong: #3D5056;
+  --text: #F4EEDC;
+  --muted: #A5B8B0;
+  --ochre: #D6A24E;
+  --stable: #6FA377;
+  --critical: #C24B3F;
+  --teal: #84A6A0;
+  --cyan: #6AD6C4;
+  --radius: 3px;
+  --ease-out: cubic-bezier(.23,1,.32,1);
+  --font-display: 'Fraunces', 'Noto Serif', 'Noto Sans Devanagari', 'Noto Sans Kannada', 'Noto Sans Telugu', 'Noto Sans Tamil', 'Noto Sans Malayalam', 'Noto Sans Bengali', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Noto Sans Arabic', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans KR', 'Noto Sans Thai', Georgia, serif;
+  --font-body: 'Inter', 'Noto Sans', 'Noto Sans Devanagari', 'Noto Sans Kannada', 'Noto Sans Telugu', 'Noto Sans Tamil', 'Noto Sans Malayalam', 'Noto Sans Bengali', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Noto Sans Arabic', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans KR', 'Noto Sans Thai', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Arial Unicode MS', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Noto Sans Mono', 'Noto Sans Devanagari', 'Noto Sans Kannada', 'Noto Sans Telugu', 'Noto Sans Tamil', 'Noto Sans Malayalam', 'Noto Sans Bengali', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Noto Sans Arabic', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans KR', 'Noto Sans Thai', 'Consolas', 'Courier New', monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 13px; line-height: 1.5; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+button, a { font: inherit; }
+button { color: inherit; }
+.app-shell { overflow: hidden; background: var(--bg); }
 
 /* Universal Multi-Script Font & Ligature Protection (Prevents missing glyphs and box/tofu rendering across all world languages) */
 [data-lang]:not([data-lang="EN"]),

@@ -33,6 +33,9 @@ export type GisZone = {
   id: string;
   name: string;
   region: string;
+  continent?: "INDIA" | "ASIA_PACIFIC" | "EUROPE" | "AMERICAS" | "AFRICA_OCEANIA";
+  country?: string;
+  countryFlag?: string;
   coords: string;
   lat: number;
   lng: number;
@@ -329,17 +332,20 @@ export function InteractiveGisMap({
 
       const marker = L.marker([zone.lat, zone.lng], { icon: customIcon });
 
-      // Clean Hover Tooltip with Details
+      // Clean Hover Tooltip with Details & Global Flags
       const tooltipContent = `
-        <div style="background: rgba(16, 23, 25, 0.96); backdrop-filter: blur(8px); border: 1px solid ${color}; color: #f3f4f6; padding: 7px 11px; border-radius: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; box-shadow: 0 8px 24px rgba(0,0,0,0.75); min-width: 175px;">
+        <div style="background: rgba(16, 23, 25, 0.96); backdrop-filter: blur(8px); border: 1px solid ${color}; color: #f3f4f6; padding: 7px 11px; border-radius: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; box-shadow: 0 8px 24px rgba(0,0,0,0.75); min-width: 185px;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px;">
-            <strong style="color: #ffffff; font-size: 11.5px; font-weight: 700;">${zone.name}</strong>
+            <div style="display: flex; align-items: center; gap: 5px;">
+              <span style="font-size: 13px;">${zone.countryFlag || "📍"}</span>
+              <strong style="color: #ffffff; font-size: 11.5px; font-weight: 700;">${zone.name}</strong>
+            </div>
             <span style="background: ${color}25; color: ${color}; border: 1px solid ${color}80; font-size: 9px; font-weight: 800; font-family: monospace; padding: 1px 5px; border-radius: 4px;">
               ${zone.tier} ${zone.riskScore}%
             </span>
           </div>
           <div style="color: #9ca3af; font-size: 9.5px; font-family: monospace; margin-bottom: 5px;">
-            ${zone.id} &bull; ${zone.region}
+            ${zone.id} &bull; ${zone.region} &bull; ${zone.elevation}
           </div>
           <div style="display: flex; gap: 8px; font-size: 9.5px; font-family: monospace; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 4px;">
             <span>Rain: <b style="color: #60a5fa;">${zone.rainfall}mm</b></span>
@@ -558,7 +564,12 @@ export function InteractiveGisMap({
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
   const handleResetOverview = () => {
     if (!mapInstanceRef.current) return;
-    mapInstanceRef.current.setView([18.5, 77.0], 6, { animate: true });
+    mapInstanceRef.current.setView([20.0, 15.0], 2, { animate: true });
+  };
+
+  const handleFlyToContinent = (center: [number, number], zoom: number) => {
+    if (!mapInstanceRef.current) return;
+    mapInstanceRef.current.flyTo(center, zoom, { duration: 1.2 });
   };
 
   const toggleFullscreen = () => {
@@ -599,23 +610,46 @@ export function InteractiveGisMap({
 
       {/* 2. TOP FLOATING CONTROL BAR */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        {/* Basemap Mode Switcher */}
-        <div className="flex items-center gap-1 bg-stone-900/95 backdrop-blur-md p-1 rounded-lg border border-stone-700/80 shadow-lg pointer-events-auto">
-          <Layers size={13} className="text-stone-400 ml-1.5 mr-0.5" />
-          {(["SATELLITE", "TOPOGRAPHY", "DARK_GIS", "STREET"] as BasemapType[]).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setBasemap(mode)}
-              className={`px-2 py-1 text-[10px] font-mono font-bold rounded transition-all ${
-                basemap === mode
-                  ? "bg-amber-500 text-stone-950 shadow-sm"
-                  : "text-stone-300 hover:text-white hover:bg-stone-800/80"
-              }`}
-            >
-              {mode.replace("_", " ")}
-            </button>
-          ))}
+        {/* Basemap Mode Switcher & Global Continent Quick Fly-To */}
+        <div className="flex items-center gap-1.5 flex-wrap pointer-events-auto">
+          <div className="flex items-center gap-1 bg-stone-900/95 backdrop-blur-md p-1 rounded-lg border border-stone-700/80 shadow-lg">
+            <Layers size={13} className="text-stone-400 ml-1.5 mr-0.5" />
+            {(["SATELLITE", "TOPOGRAPHY", "DARK_GIS", "STREET"] as BasemapType[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setBasemap(mode)}
+                className={`px-2 py-1 text-[10px] font-mono font-bold rounded transition-all ${
+                  basemap === mode
+                    ? "bg-amber-500 text-stone-950 shadow-sm"
+                    : "text-stone-300 hover:text-white hover:bg-stone-800/80"
+                }`}
+              >
+                {mode.replace("_", " ")}
+              </button>
+            ))}
+          </div>
+
+          <div className="hidden xl:flex items-center gap-1 bg-stone-900/95 backdrop-blur-md p-1 rounded-lg border border-stone-700/80 shadow-lg">
+            {[
+              { label: "🌏 WORLD", center: [20.0, 15.0] as [number, number], zoom: 2 },
+              { label: "🇮🇳 INDIA", center: [18.5, 77.0] as [number, number], zoom: 6 },
+              { label: "🇯🇵 ASIA", center: [24.0, 115.0] as [number, number], zoom: 4 },
+              { label: "🇪🇺 ALPS", center: [46.5, 10.0] as [number, number], zoom: 5 },
+              { label: "🌎 AMERICAS", center: [10.0, -80.0] as [number, number], zoom: 3 },
+              { label: "🌍 AFRICA/OC", center: [-15.0, 45.0] as [number, number], zoom: 3 },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => handleFlyToContinent(item.center, item.zoom)}
+                className="px-1.5 py-0.5 text-[9.5px] font-mono rounded text-stone-300 hover:text-white hover:bg-stone-800/80 transition-colors"
+                title={`Fly to ${item.label}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Action Controls & Layer Toggles */}
