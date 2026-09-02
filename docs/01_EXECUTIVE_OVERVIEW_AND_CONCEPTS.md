@@ -40,7 +40,7 @@ However, broad weather forecasts suffer from three fatal flaws:
 2. **Zero Soil & Tilt Awareness**: A rain forecast cannot tell you if the slope's bedrock is already saturated or if the earth has begun tilting by fractions of a millimeter (micro-creep).
 3. **Delayed Communication to Vulnerable Villages**: Alerts issued in English or state capitals often reach remote panchayats (village councils) hours after the road has already collapsed.
 
-**Landsora solves this by placing low-cost, solar-powered IoT sensor nodes directly on vulnerable hillsides to detect real-time ground movement and saturation before catastrophic failure occurs.**
+**Landsora solves this by placing low-cost, solar-powered IoT sensor nodes directly on vulnerable hillsides to detect real-time ground movement and saturation before catastrophic failure occurs.**(THIS FEATURE IS UNDER PROGRESS WAIT FOR THE FURTHER UPDATED)
 
 ---
 
