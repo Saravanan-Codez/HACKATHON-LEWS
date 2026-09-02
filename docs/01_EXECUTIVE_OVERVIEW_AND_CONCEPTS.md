@@ -110,7 +110,7 @@ During an environmental crisis, information needs to flow differently depending 
 
 | Term | What It Means in Simple English |
 |---|---|
-| **Telemetry** | Measurements (rain, soil moisture, tilt) gathered automatically by remote sensors and sent over the air to a central server. |
+| **Telemetry** | Measurements (rain, soil moisture, tilt) gathered automatically by remote sensors and sent over the air to a central server.(STILL UNDER CONSTRUCTION ) |
 | **Soil Moisture Saturation (%)** | How full of water the soil is. At 0%, it's dry sand. At 100%, it cannot absorb another drop and turns into liquid mud. |
 | **Inclinometer / Tilt Rate (°/hr)** | A sensor that measures whether the ground is slowly leaning or sliding over time (even by 0.05 degrees per hour). |
 | **Deterministic** | A process that will **always** produce the exact same output for a given input, with zero randomness or guessing. |
@@ -118,7 +118,7 @@ During an environmental crisis, information needs to flow differently depending 
 | **NASA EONET** | NASA's Earth Observatory Natural Event Tracker—a global live feed of earthquakes, storms, and natural disasters. |
 | **Grounding (in AI)** | Forcing an AI model to base its answers strictly on verified real-world facts and search results rather than its own imagination. |
 | **tRPC** | A technology that connects the website's front screen to the server with 100% automatic type safety, ensuring no data gets scrambled in transit. |
-| **ESP32** | A tiny, low-cost computer chip ($4) equipped with built-in Wi-Fi and Bluetooth that connects to the sensors on the mountain. |
+| **ESP32** | A tiny, low-cost computer chip ($4) equipped with built-in Wi-Fi and Bluetooth that connects to the sensors on the mountain.(STILL UNDER DEVELOPEMENT) |
 
 ---
 
