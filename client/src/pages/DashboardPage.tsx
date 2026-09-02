@@ -11,6 +11,8 @@ import {
 } from "@/components/DashboardSkeletons";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { GoogleAuthModal } from "@/components/GoogleAuthModal";
+import { SlopeStabilityModal } from "@/components/SlopeStabilityModal";
+import { HardwareSimulatorModal } from "@/components/HardwareSimulatorModal";
 import { InteractiveGisMap, type GisZone, type NasaEvent } from "@/components/InteractiveGisMap";
 import { useCriticalRiskToast } from "@/contexts/CriticalRiskToastContext";
 import { getDataPresentation } from "@/lib/dataPresentation";
@@ -61,6 +63,10 @@ import {
   Lock,
   MapPin,
   MapPinned,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Radio,
   RefreshCw,
   RotateCcw,
@@ -226,6 +232,8 @@ export default function DashboardPage() {
   const [notificationKind, setNotificationKind] = useState<NotificationKind>("CRITICAL_WARNING");
   const [deviceHealthOpen, setDeviceHealthOpen] = useState(false);
   const [quarantineOpen, setQuarantineOpen] = useState(false);
+  const [slopeModalOpen, setSlopeModalOpen] = useState(false);
+  const [hardwareModalOpen, setHardwareModalOpen] = useState(false);
   const [operatorApprovalModal, setOperatorApprovalModal] = useState(false);
   const [operatorDeliveryLogs, setOperatorDeliveryLogs] = useState<{ channel: string; status: string; timestamp: string; messagePreview: string }[] | null>(null);
 
@@ -241,12 +249,20 @@ export default function DashboardPage() {
     alertHistory,
     isMuted,
     toggleMute,
+    voiceEnabled,
+    toggleVoice,
+    broadcastVoiceAlert,
     notificationPermission,
     requestNotificationPermission,
   } = useCriticalRiskToast();
 
   // Gemini AI Suite & Google Auth State
   const [googleAuthModalOpen, setGoogleAuthModalOpen] = useState(false);
+
+  // Collapsible Sidebars & Search State
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+  const [locationSearch, setLocationSearch] = useState("");
 
   // Synchronize document language and data-lang attribute for clean Indic typography
   useEffect(() => {
@@ -268,6 +284,18 @@ export default function DashboardPage() {
   const displayedEvents = demoMode ? [] : liveEvents;
   const recentEvents = liveEvents.filter((event) => eventAgeDays(event.date) <= 30);
   const zone = zones.find((z) => z.id === selected) || zones[1];
+
+  const filteredZones = useMemo(() => {
+    if (!locationSearch.trim()) return zones;
+    const query = locationSearch.toLowerCase().trim();
+    return zones.filter(
+      (z) =>
+        z.name.toLowerCase().includes(query) ||
+        z.region.toLowerCase().includes(query) ||
+        z.id.toLowerCase().includes(query) ||
+        z.tier.toLowerCase().includes(query)
+    );
+  }, [zones, locationSearch]);
   const analysisPoint = selectedPoint ?? { latitude: Number(zone.coords.split(",")[0]), longitude: Number(zone.coords.split(",")[1]) };
   const nearestEvent = useMemo(() => (demoMode ? [] : liveEvents).reduce<{ event: EonetEvent | null; distance: number }>((best, event) => {
     const distance = distanceKm(analysisPoint, event);
@@ -922,6 +950,41 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
               </button>
             )}
 
+            {/* Voice Evacuation Speech Siren Toggle */}
+            <button
+              type="button"
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono border transition-all ${
+                voiceEnabled
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm"
+                  : "bg-stone-900 text-stone-400 border-stone-800 hover:text-stone-200"
+              }`}
+              onClick={toggleVoice}
+              title={voiceEnabled ? "Voice evacuation announcement active" : "Enable spoken voice alerts"}
+            >
+              <span>{voiceEnabled ? "🔊 VOICE ON" : "🔇 VOICE OFF"}</span>
+            </button>
+
+            {/* Geotechnical Mohr-Coulomb FoS Simulator Modal Trigger */}
+            <button
+              type="button"
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-cyan-950/40 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-900/40 transition-colors shadow-sm"
+              onClick={() => setSlopeModalOpen(true)}
+              title="Open Mohr-Coulomb Factor of Safety (FoS) Slope Simulator"
+            >
+              <span>⚖️ FoS MECHANICS</span>
+            </button>
+
+            {/* Live ESP32 Hardware Packet Injector Trigger */}
+            <button
+              type="button"
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors shadow-sm"
+              onClick={() => setHardwareModalOpen(true)}
+              title="Simulate live ESP32 telemetry packet transmission"
+            >
+              <Cpu size={11} className="text-amber-400" />
+              <span>⚡ INJECT PACKET</span>
+            </button>
+
             <button
               type="button"
               className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 transition-colors"
@@ -950,62 +1013,176 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
             >
               <FileText size={11} /> {t("INCIDENT REPORT")}
             </button>
+
+            <div className="h-4 w-px bg-stone-800 mx-1 hidden sm:block" />
+
+            {/* Quick Sidebar Viewport Toggles */}
+            <button
+              type="button"
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-semibold transition-colors ${
+                leftSidebarOpen
+                  ? "bg-stone-800 text-stone-200 border border-stone-700"
+                  : "bg-stone-900 text-stone-500 border border-stone-800 hover:text-stone-300"
+              }`}
+              onClick={() => setLeftSidebarOpen((prev) => !prev)}
+              title={leftSidebarOpen ? "Hide Stations List (More Map Area)" : "Show Stations List"}
+            >
+              {leftSidebarOpen ? <PanelLeftClose size={12} className="text-amber-400" /> : <PanelLeftOpen size={12} />}
+              <span>{t("STATIONS")}</span>
+            </button>
+
+            <button
+              type="button"
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-semibold transition-colors ${
+                rightSidebarOpen
+                  ? "bg-stone-800 text-stone-200 border border-stone-700"
+                  : "bg-stone-900 text-stone-500 border border-stone-800 hover:text-stone-300"
+              }`}
+              onClick={() => setRightSidebarOpen((prev) => !prev)}
+              title={rightSidebarOpen ? "Hide Details Sidebar (More Map Area)" : "Show Details Sidebar"}
+            >
+              <span>{t("DETAILS")}</span>
+              {rightSidebarOpen ? <PanelRightClose size={12} className="text-amber-400" /> : <PanelRightOpen size={12} />}
+            </button>
           </div>
         </div>
 
-        {/* Primary Operational Grid - Expansive 3-Column Command Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-5 items-start">
-          {/* Left Column: Zone Monitor List */}
-          <aside className="zone-monitor panel lg:col-span-3 xl:col-span-3 flex flex-col h-full">
-            <div className="panel-title">
-              <span>{t("ZONE MONITOR / SENSOR STATE")}</span>
-              <span className="mono">{zones.length.toString().padStart(2, '0')} / {zones.length.toString().padStart(2, '0')}</span>
-            </div>
-            <div className="zone-list">
-              {zones.map(z => (
-                <button
-                  key={z.id}
-                  className={`zone-row ${z.id === selected ? "selected" : ""}`}
-                  onClick={() => setSelected(z.id)}
-                >
-                  <div className="zone-info">
-                    <div className="zone-top">
-                      <span className="status-dot" style={{ background: statusColor(z.tier) }} />
-                      <strong>{z.name}</strong>
-                      <span className="zone-arrow">{z.score >= z.history[z.history.length - 2] ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}</span>
-                    </div>
-                    <div className="zone-bottom">
-                      <div className="zone-signal">
-                        <b style={{ color: statusColor(z.tier) }}>SENSOR {z.tier}</b>
-                        <span className="score">SIGNAL <b>{z.score}</b> <small>/ 100</small></span>
+        {/* Primary Operational Grid - Expansive Dynamic Command Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 xl:gap-4 items-start relative">
+          {/* Left Column: Zone Monitor List (Collapsible) */}
+          {leftSidebarOpen && (
+            <aside className="zone-monitor panel lg:col-span-3 xl:col-span-3 flex flex-col h-full animate-in fade-in slide-in-from-left-2 duration-200">
+              <div className="panel-title flex items-center justify-between mb-2">
+                <span className="flex items-center gap-1.5">
+                  <MapPin size={13} className="text-amber-400" />
+                  {t("ZONE MONITOR")}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="mono text-[10px] text-stone-400">{filteredZones.length} / {zones.length}</span>
+                  <button
+                    type="button"
+                    onClick={() => setLeftSidebarOpen(false)}
+                    className="p-1 rounded text-stone-400 hover:text-stone-100 hover:bg-stone-800 transition-colors"
+                    title="Collapse Stations List (Wider Map)"
+                  >
+                    <PanelLeftClose size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Station Search Input */}
+              <div className="relative mb-2.5">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={locationSearch}
+                  onChange={(e) => setLocationSearch(e.target.value)}
+                  placeholder={t("Filter 12 stations...")}
+                  className="w-full bg-[#101719] border border-stone-800 focus:border-amber-500/60 rounded-lg pl-7 pr-7 py-1.5 text-[11px] text-stone-200 placeholder-stone-500 font-mono outline-none transition-colors"
+                />
+                {locationSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setLocationSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-100 p-0.5"
+                    title="Clear search"
+                  >
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+
+              <div className="zone-list">
+                {filteredZones.length > 0 ? (
+                  filteredZones.map((z) => (
+                    <button
+                      key={z.id}
+                      className={`zone-row ${z.id === selected ? "selected" : ""}`}
+                      onClick={() => {
+                        setSelected(z.id);
+                        if (!rightSidebarOpen) setRightSidebarOpen(true);
+                      }}
+                    >
+                      <div className="zone-info">
+                        <div className="zone-top">
+                          <span className="status-dot" style={{ background: statusColor(z.tier) }} />
+                          <strong>{z.name}</strong>
+                          <span className="zone-arrow">{z.score >= z.history[z.history.length - 2] ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}</span>
+                        </div>
+                        <div className="zone-bottom">
+                          <div className="zone-signal">
+                            <b style={{ color: statusColor(z.tier) }}>SENSOR {z.tier}</b>
+                            <span className="score">SIGNAL <b>{z.score}</b> <small>/ 100</small></span>
+                          </div>
+                          <span className="zone-region">{z.region.toUpperCase()}</span>
+                        </div>
                       </div>
-                      <span className="zone-region">{z.region.toUpperCase()}</span>
-                    </div>
+                      <div className="zone-spark-col">
+                        <TinySpark values={z.history} color={statusColor(z.tier)} />
+                        <span>{t("RISK TRACE")}</span>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-xs text-stone-500 font-mono">
+                    {t("No stations match search criteria.")}
                   </div>
-                  <div className="zone-spark-col">
-                    <TinySpark values={z.history} color={statusColor(z.tier)} />
-                    <span>{t("RISK TRACE")}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <div className="network">
-              <div className="panel-title">{t("SENSOR NETWORK")} <span className="online-mini"><i /> NOMINAL</span></div>
-              <div className="network-big">12 / 12 <span>{t("CHANNELS ONLINE")}</span></div>
-              <div className="network-row"><span>{t("DATA LINK")}</span><b>{demoMode ? "SIMULATED" : liveAvailable ? "NASA EONET" : "FALLBACK"}</b></div>
-              <div className="network-row"><span>{t("MQTT LATENCY")}</span><b>1.8 SEC</b></div>
-              <div className="network-row"><span>{t("NODE BATTERY")}</span><b>{zone.batteryVoltage}V ({Math.round(((zone.batteryVoltage - 3.2) / 1.0) * 100)}%)</b></div>
-            </div>
-          </aside>
+                )}
+              </div>
+              <div className="network">
+                <div className="panel-title">{t("SENSOR NETWORK")} <span className="online-mini"><i /> NOMINAL</span></div>
+                <div className="network-big">12 / 12 <span>{t("CHANNELS ONLINE")}</span></div>
+                <div className="network-row"><span>{t("DATA LINK")}</span><b>{demoMode ? "SIMULATED" : liveAvailable ? "NASA EONET" : "FALLBACK"}</b></div>
+                <div className="network-row"><span>{t("MQTT LATENCY")}</span><b>1.8 SEC</b></div>
+                <div className="network-row"><span>{t("NODE BATTERY")}</span><b>{zone.batteryVoltage}V ({Math.round(((zone.batteryVoltage - 3.2) / 1.0) * 100)}%)</b></div>
+              </div>
+            </aside>
+          )}
 
           {/* Center Column: Terrain GIS Interactive Map (Expansive) */}
-          <div id="map-panel" className="map-panel panel lg:col-span-6 xl:col-span-6 2xl:col-span-6 flex flex-col p-0 overflow-hidden shadow-2xl rounded-xl border border-stone-800">
+          <div
+            id="map-panel"
+            className={`map-panel panel flex flex-col p-0 overflow-hidden shadow-2xl rounded-xl border border-stone-800 transition-all duration-300 relative ${
+              leftSidebarOpen && rightSidebarOpen
+                ? "lg:col-span-6 xl:col-span-6 2xl:col-span-6"
+                : (!leftSidebarOpen && rightSidebarOpen) || (leftSidebarOpen && !rightSidebarOpen)
+                ? "lg:col-span-9 xl:col-span-9 2xl:col-span-9"
+                : "lg:col-span-12 xl:col-span-12 2xl:col-span-12"
+            }`}
+          >
+            {/* Floating Left Sidebar Toggle Handle (When Left Closed) */}
+            {!leftSidebarOpen && (
+              <button
+                type="button"
+                onClick={() => setLeftSidebarOpen(true)}
+                className="absolute top-16 left-3 z-[1001] flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-900/95 backdrop-blur-md border border-stone-700/90 text-stone-200 hover:text-white hover:border-amber-500/50 shadow-xl text-xs font-mono transition-all pointer-events-auto animate-in fade-in duration-200"
+                title="Show Stations List"
+              >
+                <PanelLeftOpen size={14} className="text-amber-400" />
+                <span>STATIONS ({zones.length})</span>
+              </button>
+            )}
+
+            {/* Floating Right Sidebar Toggle Handle (When Right Closed) */}
+            {!rightSidebarOpen && (
+              <button
+                type="button"
+                onClick={() => setRightSidebarOpen(true)}
+                className="absolute top-16 right-3 z-[1001] flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-900/95 backdrop-blur-md border border-stone-700/90 text-stone-200 hover:text-white hover:border-amber-500/50 shadow-xl text-xs font-mono transition-all pointer-events-auto animate-in fade-in duration-200"
+                title="Show Station Details"
+              >
+                <span>DETAILS ({zone.id.split("-")[0]})</span>
+                <PanelRightOpen size={14} className="text-amber-400" />
+              </button>
+            )}
+
             <InteractiveGisMap
               zones={gisZones}
               selectedZoneId={selected}
               onSelectZone={(zoneId) => {
                 setSelected(zoneId);
                 setSelectedPoint(null);
+                if (!rightSidebarOpen) setRightSidebarOpen(true);
               }}
               onMapClickPoint={(point) => {
                 setSelectedPoint(point);
@@ -1016,61 +1193,76 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
             />
           </div>
 
-          {/* Right Column: Zone Intelligence & Gauges */}
-          <aside className="intelligence panel lg:col-span-3 xl:col-span-3 2xl:col-span-3 flex flex-col h-full">
-            <div className="panel-title">
-              <span>{t("ZONE INTELLIGENCE")}</span>
-              <span className="mono">{zone.id}</span>
-            </div>
-            <div className="selected-zone">
-              <span>{t("SELECTED NODE")}</span>
-              <h3>{zone.name}</h3>
-              <p>{zone.region} · {zone.coords}</p>
-            </div>
-            <div className="live-analysis">
-              <div className="live-analysis-title">
-                <span>{t("LOCATION TELEMETRY STATUS")}</span>
-                <strong>{validationResult.status}</strong>
-              </div>
-              <div className="analysis-grid">
-                <span>LAT / LONG<b>{analysisPoint.latitude.toFixed(4)}, {analysisPoint.longitude.toFixed(4)}</b></span>
-                <span>{t("DATA CONFIDENCE")}<b style={{ color: validationResult.overallConfidence > 80 ? "#6FA377" : "#D6A24E" }}>{validationResult.overallConfidence}%</b></span>
-                <span>{t("NEAREST REPORTED EVENT")}<b>{nearestEvent.event ? `${nearestEvent.distance.toFixed(0)} km` : "—"}</b></span>
-                <span>{t("LANDSORA RISK SCORE")}<b style={{ color: prototypeRiskColor }}>{prototypeRiskScore} / 100</b></span>
-              </div>
-            </div>
-            <div className="risk-block">
-              <div className="risk-label">
-                <span>{t("LANDSORA RISK SCORE")}</span>
-                <span style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</span>
-              </div>
-              <div className="gauge">
-                <div className="gauge-track">
-                  <div className="gauge-fill" style={{ width: `${prototypeRiskScore}%`, background: prototypeRiskColor }} />
+          {/* Right Column: Zone Intelligence & Gauges (Collapsible) */}
+          {rightSidebarOpen && (
+            <aside className="intelligence panel lg:col-span-3 xl:col-span-3 2xl:col-span-3 flex flex-col h-full animate-in fade-in slide-in-from-right-2 duration-200">
+              <div className="panel-title flex items-center justify-between mb-2">
+                <span className="flex items-center gap-1.5">
+                  <Activity size={13} className="text-amber-400" />
+                  {t("ZONE INTELLIGENCE")}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="mono text-[10px] text-amber-400/90">{zone.id}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRightSidebarOpen(false)}
+                    className="p-1 rounded text-stone-400 hover:text-stone-100 hover:bg-stone-800 transition-colors"
+                    title="Collapse Details Sidebar (Wider Map)"
+                  >
+                    <PanelRightClose size={13} />
+                  </button>
                 </div>
-                <div className="gauge-number">{prototypeRiskScore}<small>/100</small></div>
               </div>
-              <div className="advisory" style={{ borderColor: prototypeRiskColor }}>
-                <span>ADVISORY / {prototypeRiskLevel}</span>
-                <p>
-                  {t(
-                    prototypeRiskLevel === "LOW"
-                      ? "Slope conditions remain within seasonal stability margins."
-                      : prototypeRiskLevel === "MODERATE"
-                      ? "Moisture approaching plastic saturation limit. Maintain continuous monitoring."
-                      : prototypeRiskLevel === "HIGH"
-                      ? "Elevated pore pressure detected. Review mountain road corridors."
-                      : "Critical slope failure risk. Authority assessment and response procedures should be initiated."
-                  )}
-                </p>
+              <div className="selected-zone">
+                <span>{t("SELECTED NODE")}</span>
+                <h3>{zone.name}</h3>
+                <p>{zone.region} · {zone.coords}</p>
               </div>
-            </div>
-            <div className="metric-grid">
-              <Metric icon={<CloudRain size={15} />} label={t("RAINFALL")} value={zone.rainfall.toFixed(1)} unit="mm/hr" prev={zone.rainfall - 0.4} color="#84A6A0" />
-              <Metric icon={<Waves size={15} />} label={t("SOIL MOISTURE")} value={zone.soil.toFixed(1)} unit="%" prev={zone.soil - 0.6} color="#D6A24E" />
-              <Metric icon={<Wind size={15} />} label={t("SLOPE TILT")} value={zone.tilt.toFixed(3)} unit="°/hr" prev={zone.tilt - 0.002} color="#C28A70" />
-            </div>
-          </aside>
+              <div className="live-analysis">
+                <div className="live-analysis-title">
+                  <span>{t("LOCATION TELEMETRY STATUS")}</span>
+                  <strong>{validationResult.status}</strong>
+                </div>
+                <div className="analysis-grid">
+                  <span>LAT / LONG<b>{analysisPoint.latitude.toFixed(4)}, {analysisPoint.longitude.toFixed(4)}</b></span>
+                  <span>{t("DATA CONFIDENCE")}<b style={{ color: validationResult.overallConfidence > 80 ? "#6FA377" : "#D6A24E" }}>{validationResult.overallConfidence}%</b></span>
+                  <span>{t("NEAREST REPORTED EVENT")}<b>{nearestEvent.event ? `${nearestEvent.distance.toFixed(0)} km` : "—"}</b></span>
+                  <span>{t("LANDSORA RISK SCORE")}<b style={{ color: prototypeRiskColor }}>{prototypeRiskScore} / 100</b></span>
+                </div>
+              </div>
+              <div className="risk-block">
+                <div className="risk-label">
+                  <span>{t("LANDSORA RISK SCORE")}</span>
+                  <span style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</span>
+                </div>
+                <div className="gauge">
+                  <div className="gauge-track">
+                    <div className="gauge-fill" style={{ width: `${prototypeRiskScore}%`, background: prototypeRiskColor }} />
+                  </div>
+                  <div className="gauge-number">{prototypeRiskScore}<small>/100</small></div>
+                </div>
+                <div className="advisory" style={{ borderColor: prototypeRiskColor }}>
+                  <span>ADVISORY / {prototypeRiskLevel}</span>
+                  <p>
+                    {t(
+                      prototypeRiskLevel === "LOW"
+                        ? "Slope conditions remain within seasonal stability margins."
+                        : prototypeRiskLevel === "MODERATE"
+                        ? "Moisture approaching plastic saturation limit. Maintain continuous monitoring."
+                        : prototypeRiskLevel === "HIGH"
+                        ? "Elevated pore pressure detected. Review mountain road corridors."
+                        : "Critical slope failure risk. Authority assessment and response procedures should be initiated."
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="metric-grid">
+                <Metric icon={<CloudRain size={15} />} label={t("RAINFALL")} value={zone.rainfall.toFixed(1)} unit="mm/hr" prev={zone.rainfall - 0.4} color="#84A6A0" />
+                <Metric icon={<Waves size={15} />} label={t("SOIL MOISTURE")} value={zone.soil.toFixed(1)} unit="%" prev={zone.soil - 0.6} color="#D6A24E" />
+                <Metric icon={<Wind size={15} />} label={t("SLOPE TILT")} value={zone.tilt.toFixed(3)} unit="°/hr" prev={zone.tilt - 0.002} color="#C28A70" />
+              </div>
+            </aside>
+          )}
         </div>
 
         {/* Lower Telemetry & Explainability Grid */}
@@ -1623,6 +1815,25 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
         onSuccess={() => {
           authMeQuery.refetch();
           setNotice("Google Account successfully verified for AI operations.");
+        }}
+      />
+
+      {/* Geotechnical Mohr-Coulomb Factor of Safety (FoS) Slope Simulator Modal */}
+      <SlopeStabilityModal
+        isOpen={slopeModalOpen}
+        onClose={() => setSlopeModalOpen(false)}
+        zoneName={zone.name}
+        initialSoilMoisture={zone.soil}
+        initialTilt={zone.tilt}
+      />
+
+      {/* Live ESP32 Hardware Telemetry Ingest Packet Simulator Modal */}
+      <HardwareSimulatorModal
+        isOpen={hardwareModalOpen}
+        onClose={() => setHardwareModalOpen(false)}
+        nodeId={zone.id}
+        onTelemetryInjected={(data) => {
+          setNotice(`Telemetry injected successfully for ${data.nodeId || zone.id} (Calculated Risk: ${data.riskScore}/100)`);
         }}
       />
 

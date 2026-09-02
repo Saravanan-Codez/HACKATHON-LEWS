@@ -72,27 +72,27 @@ const BASEMAP_CONFIGS: Record<BasemapType, { url: string; attribution: string; m
   SATELLITE: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; Esri &mdash; Earthstar Geographics & USGS",
-    maxNativeZoom: 19,
-    maxZoom: 22,
+    maxNativeZoom: 18,
+    maxZoom: 19,
   },
   TOPOGRAPHY: {
     url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
     attribution: "Map data: &copy; OpenStreetMap, SRTM | Map style: &copy; OpenTopoMap",
     maxNativeZoom: 17,
-    maxZoom: 22,
+    maxZoom: 19,
     subdomains: ["a", "b", "c"],
   },
   DARK_GIS: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; Esri &mdash; HERE, Garmin, &copy; OpenStreetMap contributors",
-    maxNativeZoom: 18,
-    maxZoom: 22,
+    maxNativeZoom: 16,
+    maxZoom: 19,
   },
   STREET: {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: "&copy; OpenStreetMap contributors",
     maxNativeZoom: 19,
-    maxZoom: 22,
+    maxZoom: 19,
     subdomains: ["a", "b", "c"],
   },
 };
@@ -109,16 +109,22 @@ export function InteractiveGisMap({
   onAnalysisPinSelect,
 }: InteractiveGisMapProps) {
   const activeZoneId = selectedZoneId || focusedZoneId;
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const nasaLayerRef = useRef<L.LayerGroup | null>(null);
+  const heatmapLayerRef = useRef<L.LayerGroup | null>(null);
+  const evacuationLayerRef = useRef<L.LayerGroup | null>(null);
   const pinMarkerRef = useRef<L.Marker | null>(null);
 
   const [basemap, setBasemap] = useState<BasemapType>("SATELLITE");
   const [showNasa, setShowNasa] = useState(true);
   const [showHalos, setShowHalos] = useState(true);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showEvacuation, setShowEvacuation] = useState(false);
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mouseCoords, setMouseCoords] = useState<{ lat: number; lng: number; zoom: number }>({
     lat: 13.0,
@@ -138,27 +144,47 @@ export function InteractiveGisMap({
     }
   }, [selectedPoint]);
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFs = Boolean(document.fullscreenElement);
+      setIsFullscreen(isFs);
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 50);
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 250);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
 
     try {
-      // Center on India mountain systems with deep 22x zoom support
+      // Center on India mountain systems with clean upscaled zoom support
       const map = L.map(mapContainerRef.current, {
         center: [18.5, 77.0],
         zoom: 6,
         zoomControl: false,
         attributionControl: false,
         minZoom: 3,
-        maxZoom: 22,
+        maxZoom: 19,
       });
 
-      // Tile Layer with 22x upscaled deep zoom
+      // Tile Layer with safe maxNativeZoom and upscaled zoom
       const cfg = BASEMAP_CONFIGS["SATELLITE"];
       const tileLayer = L.tileLayer(cfg.url, {
         maxNativeZoom: cfg.maxNativeZoom,
-        maxZoom: 22,
+        maxZoom: 19,
         subdomains: cfg.subdomains || "abc",
       });
 
@@ -171,8 +197,12 @@ export function InteractiveGisMap({
       // Layer groups for clean management
       const markersGroup = L.layerGroup().addTo(map);
       const nasaGroup = L.layerGroup().addTo(map);
+      const heatmapGroup = L.layerGroup().addTo(map);
+      const evacuationGroup = L.layerGroup().addTo(map);
       markersLayerRef.current = markersGroup;
       nasaLayerRef.current = nasaGroup;
+      heatmapLayerRef.current = heatmapGroup;
+      evacuationLayerRef.current = evacuationGroup;
 
       // Track mouse coordinates
       map.on("mousemove", (e: L.LeafletMouseEvent) => {
@@ -243,7 +273,7 @@ export function InteractiveGisMap({
       const cfg = BASEMAP_CONFIGS[basemap];
       const newTile = L.tileLayer(cfg.url, {
         maxNativeZoom: cfg.maxNativeZoom,
-        maxZoom: 22,
+        maxZoom: 19,
         subdomains: cfg.subdomains || "abc",
       });
 
@@ -271,89 +301,59 @@ export function InteractiveGisMap({
       const isWatch = zone.tier === "WATCH";
 
       const color = isCritical ? "#ef4444" : isWatch ? "#f59e0b" : "#10b981";
-      const glowColor = isCritical ? "rgba(239, 68, 68, 0.45)" : isWatch ? "rgba(245, 158, 11, 0.35)" : "rgba(16, 185, 129, 0.25)";
+      const glowColor = isCritical ? "rgba(239, 68, 68, 0.5)" : isWatch ? "rgba(245, 158, 11, 0.4)" : "rgba(16, 185, 129, 0.35)";
 
-      // Custom high-tech glowing marker
+      // Simple, clean, noticeable small dot marker
       const html = `
-        <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; cursor: pointer;">
-          ${
-            showHalos && (isCritical || isFocused)
-              ? `<div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; background: ${glowColor}; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
-              : ""
-          }
+        <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; cursor: pointer;">
+          ${isFocused ? `<div style="position: absolute; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid ${color}; opacity: 0.7;"></div>` : ""}
           <div style="
-            width: ${isFocused ? "28px" : "24px"};
-            height: ${isFocused ? "28px" : "24px"};
+            width: ${isFocused ? "13px" : "11px"};
+            height: ${isFocused ? "13px" : "11px"};
             border-radius: 50%;
-            background: #12181a;
-            border: 2px solid ${color};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px ${glowColor};
-            position: relative;
-            z-index: 10;
-            transition: all 0.2s ease;
-          ">
-            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${color};"></div>
-          </div>
-          <div style="
-            position: absolute;
-            top: -14px;
-            background: rgba(18, 24, 26, 0.95);
-            border: 1px solid ${color};
-            color: ${color};
-            font-size: 8.5px;
-            font-family: monospace;
-            font-weight: 700;
-            padding: 1px 4px;
-            border-radius: 3px;
-            white-space: nowrap;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.6);
-            z-index: 11;
-            pointer-events: none;
-          ">
-            ${zone.id.split("-")[0]}
-          </div>
+            background: ${color};
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 8px ${glowColor};
+            transition: transform 0.15s ease;
+          "></div>
         </div>
       `;
 
       const customIcon = L.divIcon({
         html,
-        className: "landsora-station-icon",
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-        popupAnchor: [0, -18],
+        className: "landsora-dot-marker",
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+        popupAnchor: [0, -14],
       });
 
       const marker = L.marker([zone.lat, zone.lng], { icon: customIcon });
 
-      // Custom Popup Card
-      const popupContent = `
-        <div style="background: #141c1e; color: #f3f4f6; border-radius: 8px; padding: 12px; font-family: sans-serif; font-size: 12px; min-width: 220px; border: 1px solid #374151; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <strong style="color: #f9fafb; font-size: 13px; font-family: monospace;">${zone.name}</strong>
-            <span style="background: ${color}20; color: ${color}; border: 1px solid ${color}60; font-size: 9px; font-weight: bold; font-family: monospace; padding: 2px 5px; border-radius: 3px;">
+      // Clean Hover Tooltip with Details
+      const tooltipContent = `
+        <div style="background: rgba(16, 23, 25, 0.96); backdrop-filter: blur(8px); border: 1px solid ${color}; color: #f3f4f6; padding: 7px 11px; border-radius: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; box-shadow: 0 8px 24px rgba(0,0,0,0.75); min-width: 175px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px;">
+            <strong style="color: #ffffff; font-size: 11.5px; font-weight: 700;">${zone.name}</strong>
+            <span style="background: ${color}25; color: ${color}; border: 1px solid ${color}80; font-size: 9px; font-weight: 800; font-family: monospace; padding: 1px 5px; border-radius: 4px;">
               ${zone.tier} ${zone.riskScore}%
             </span>
           </div>
-          <div style="color: #9ca3af; font-size: 10px; font-family: monospace; margin-bottom: 8px;">
-            ${zone.id} &middot; ${zone.region} &middot; ${zone.elevation}
+          <div style="color: #9ca3af; font-size: 9.5px; font-family: monospace; margin-bottom: 5px;">
+            ${zone.id} &bull; ${zone.region}
           </div>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; text-align: center; font-size: 10px; font-family: monospace; background: #0f1416; padding: 6px; border-radius: 6px; border: 1px solid #263238; margin-bottom: 8px;">
-            <div><span style="color: #6b7280; font-size: 8px; display: block;">RAIN</span><b style="color: #60a5fa;">${zone.rainfall}mm</b></div>
-            <div><span style="color: #6b7280; font-size: 8px; display: block;">SOIL</span><b style="color: #f59e0b;">${zone.soil}%</b></div>
-            <div><span style="color: #6b7280; font-size: 8px; display: block;">TILT</span><b style="color: #c084fc;">${zone.tilt}&deg;</b></div>
-          </div>
-          <div style="font-size: 10px; color: #d1d5db; line-height: 1.3; font-style: italic; margin-bottom: 6px;">
-            ${zone.geology}
+          <div style="display: flex; gap: 8px; font-size: 9.5px; font-family: monospace; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 4px;">
+            <span>Rain: <b style="color: #60a5fa;">${zone.rainfall}mm</b></span>
+            <span>Soil: <b style="color: #f59e0b;">${zone.soil}%</b></span>
+            <span>Tilt: <b style="color: #c084fc;">${zone.tilt}&deg;</b></span>
           </div>
         </div>
       `;
 
-      marker.bindPopup(popupContent, {
-        className: "landsora-leaflet-popup",
-        closeButton: true,
+      marker.bindTooltip(tooltipContent, {
+        direction: "top",
+        offset: [0, -10],
+        opacity: 1,
+        className: "landsora-leaflet-tooltip",
       });
 
       marker.on("click", () => {
@@ -421,17 +421,34 @@ export function InteractiveGisMap({
 
     if (analysisPin) {
       const pinHtml = `
-        <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-          <div style="position: absolute; width: 34px; height: 34px; border-radius: 50%; border: 2px dashed #38bdf8; animation: spin 4s linear infinite;"></div>
-          <div style="width: 12px; height: 12px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 10px #38bdf8;"></div>
+        <div style="display: flex; align-items: center; justify-content: center; cursor: pointer;">
+          <div style="
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(8, 51, 68, 0.94);
+            backdrop-filter: blur(8px);
+            border: 1.5px solid #38bdf8;
+            color: #ffffff;
+            padding: 2px 7px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 8px rgba(56, 189, 248, 0.4);
+            font-family: var(--font-mono, monospace);
+            font-size: 10.5px;
+            font-weight: 700;
+            white-space: nowrap;
+          ">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 5px #38bdf8;"></span>
+            <span>PIN ${analysisPin.risk}%</span>
+          </div>
         </div>
       `;
 
       const pinIcon = L.divIcon({
         html: pinHtml,
         className: "analysis-crosshair-icon",
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
+        iconSize: [60, 20],
+        iconAnchor: [30, 10],
       });
 
       const marker = L.marker([analysisPin.lat, analysisPin.lng], { icon: pinIcon }).addTo(map);
@@ -451,6 +468,91 @@ export function InteractiveGisMap({
     }
   }, [analysisPin]);
 
+  // Render Landslide Susceptibility Heatmap Canvas Layer
+  useEffect(() => {
+    const group = heatmapLayerRef.current;
+    if (!group) return;
+    group.clearLayers();
+    if (!showHeatmap) return;
+
+    zones.forEach((z) => {
+      const isCritical = z.tier === "CRITICAL";
+      const isWatch = z.tier === "WATCH";
+      const color = isCritical ? "#ef4444" : isWatch ? "#f59e0b" : "#10b981";
+      const radius = (z.riskScore / 100) * 8000 + 3000;
+
+      const outerGlow = L.circle([z.lat, z.lng], {
+        radius,
+        color: "transparent",
+        fillColor: color,
+        fillOpacity: isCritical ? 0.16 : isWatch ? 0.10 : 0.05,
+        weight: 0,
+      });
+      group.addLayer(outerGlow);
+
+      const coreGlow = L.circle([z.lat, z.lng], {
+        radius: radius * 0.45,
+        color: color,
+        weight: 1,
+        opacity: 0.25,
+        fillColor: color,
+        fillOpacity: isCritical ? 0.25 : 0.12,
+      });
+      group.addLayer(coreGlow);
+    });
+  }, [zones, showHeatmap]);
+
+  // Render Evacuation Shelters & Safe Corridors Layer
+  useEffect(() => {
+    const group = evacuationLayerRef.current;
+    if (!group) return;
+    group.clearLayers();
+    if (!showEvacuation) return;
+
+    const EVACUATION_SHELTERS = [
+      { id: "SHELTER-KDG", name: "Coorg Valley High Ground Shelter", lat: 12.48, lng: 75.82, type: "PRIMARY RELIEF CAMP", capacity: "1,200 Persons" },
+      { id: "SHELTER-WYD", name: "Wayanad Disaster Relief Center", lat: 11.68, lng: 76.18, type: "MEDICAL & EVACUATION HUB", capacity: "2,500 Persons" },
+      { id: "SHELTER-IDK", name: "Idukki Ridge Safe Pavilion", lat: 9.92, lng: 77.02, type: "HELIPAD & EMERGENCY REFUGE", capacity: "800 Persons" },
+      { id: "SHELTER-NIL", name: "Nilgiris High Plateau Cantonment", lat: 11.42, lng: 76.78, type: "COMMUNITY SHELTER", capacity: "1,500 Persons" },
+    ];
+
+    EVACUATION_SHELTERS.forEach((shelter) => {
+      const iconHtml = `
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;">
+          <div style="width: 26px; height: 26px; border-radius: 6px; background: #064e3b; border: 2px solid #34d399; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(52, 211, 153, 0.6); font-size: 13px;">
+            🛡️
+          </div>
+        </div>
+      `;
+      const icon = L.divIcon({ html: iconHtml, className: "evac-shelter-icon", iconSize: [32, 32], iconAnchor: [16, 16] });
+      const marker = L.marker([shelter.lat, shelter.lng], { icon });
+      marker.bindPopup(`
+        <div style="background: #0f172a; color: #f8fafc; padding: 10px; font-size: 11px; border: 1px solid #10b981; border-radius: 6px; min-width: 200px;">
+          <strong style="color: #34d399; font-size: 12px; display: block; margin-bottom: 2px;">🛡️ ${shelter.name}</strong>
+          <div style="color: #94a3b8; font-family: monospace; font-size: 10px;">${shelter.type}</div>
+          <div style="color: #cbd5e1; font-size: 10px; margin-top: 4px;">CAPACITY: <b style="color: #6ee7b7;">${shelter.capacity}</b></div>
+        </div>
+      `);
+      group.addLayer(marker);
+    });
+
+    // Safe evacuation corridors (Polyline dashed paths from high risk nodes to nearest shelters)
+    const corridors = [
+      [[12.3375, 75.8069], [12.48, 75.82]],
+      [[11.55, 76.13], [11.68, 76.18]],
+      [[9.85, 76.95], [9.92, 77.02]],
+    ];
+    corridors.forEach((path) => {
+      const line = L.polyline(path as L.LatLngExpression[], {
+        color: "#34d399",
+        weight: 3,
+        dashArray: "6, 8",
+        opacity: 0.85,
+      });
+      group.addLayer(line);
+    });
+  }, [showEvacuation]);
+
   // Controls
   const handleZoomIn = () => mapInstanceRef.current?.zoomIn();
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
@@ -460,16 +562,36 @@ export function InteractiveGisMap({
   };
 
   const toggleFullscreen = () => {
-    setIsFullscreen((prev) => !prev);
+    const isCurrentlyFs = Boolean(document.fullscreenElement);
+    if (!isCurrentlyFs) {
+      if (wrapperRef.current?.requestFullscreen) {
+        wrapperRef.current.requestFullscreen().catch(() => {
+          setIsFullscreen((prev) => !prev);
+        });
+      } else {
+        setIsFullscreen((prev) => !prev);
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      setIsFullscreen(false);
+    }
     setTimeout(() => {
       mapInstanceRef.current?.invalidateSize();
-    }, 300);
+    }, 100);
+    setTimeout(() => {
+      mapInstanceRef.current?.invalidateSize();
+    }, 350);
   };
+
+  const activeZone = zones.find((z) => z.id === activeZoneId) || zones[0];
 
   return (
     <div
+      ref={wrapperRef}
       className={`relative w-full overflow-hidden bg-[#101719] border border-stone-800 rounded-xl shadow-2xl transition-all duration-300 ${
-        isFullscreen ? "fixed inset-0 z-[10000] rounded-none" : "h-[580px] sm:h-[660px] lg:h-[720px] xl:h-[760px] 2xl:h-[820px] min-h-[520px]"
+        isFullscreen ? "fixed inset-0 z-[99999] w-screen h-screen rounded-none" : "h-[580px] sm:h-[660px] lg:h-[720px] xl:h-[760px] 2xl:h-[820px] min-h-[520px]"
       } ${className}`}
     >
       {/* 1. REAL LEAFLET MAP CANVAS */}
@@ -498,6 +620,39 @@ export function InteractiveGisMap({
 
         {/* Action Controls & Layer Toggles */}
         <div className="flex items-center gap-1.5 bg-stone-900/95 backdrop-blur-md p-1 rounded-lg border border-stone-700/80 shadow-lg pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setShowHeatmap((prev) => !prev)}
+            className={`px-2 py-1 rounded text-[10px] font-mono font-semibold flex items-center gap-1 transition-all ${
+              showHeatmap ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "text-stone-400 hover:text-stone-200"
+            }`}
+            title="Toggle Landslide Susceptibility Heatmap"
+          >
+            <span>🔥 HEATMAP</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowEvacuation((prev) => !prev)}
+            className={`px-2 py-1 rounded text-[10px] font-mono font-semibold flex items-center gap-1 transition-all ${
+              showEvacuation ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "text-stone-400 hover:text-stone-200"
+            }`}
+            title="Toggle Safe Relief Camps & Evacuation Corridors"
+          >
+            <span>🛡️ EVACUATION</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowProfileDrawer((prev) => !prev)}
+            className={`px-2 py-1 rounded text-[10px] font-mono font-semibold flex items-center gap-1 transition-all ${
+              showProfileDrawer ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40" : "text-stone-400 hover:text-stone-200"
+            }`}
+            title="Toggle Topographic Elevation & Slip Plane Profile"
+          >
+            <span>📐 PROFILE</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setShowNasa((prev) => !prev)}
@@ -557,6 +712,41 @@ export function InteractiveGisMap({
           </button>
         </div>
       </div>
+
+      {/* TOPOGRAPHIC CROSS-SECTION DRAWER (WHEN PROFILE ACTIVE) */}
+      {showProfileDrawer && activeZone && (
+        <div className="absolute top-14 left-3 right-3 z-[1000] p-3.5 rounded-xl bg-stone-950/95 backdrop-blur-md border border-cyan-500/40 shadow-2xl space-y-2 pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between text-xs font-mono">
+            <span className="text-cyan-300 font-bold flex items-center gap-1.5">
+              <span>📐</span> {activeZone.name} — TOPOGRAPHIC CROSS-SECTION & SLIP SURFACE
+            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-stone-400">ELEVATION: <b className="text-stone-200">{activeZone.elevation}</b></span>
+              <span className="text-stone-400">GEOLOGY: <b className="text-amber-300">{activeZone.geology}</b></span>
+              <button
+                type="button"
+                onClick={() => setShowProfileDrawer(false)}
+                className="text-stone-400 hover:text-white p-0.5"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+          <div className="relative h-20 w-full bg-stone-900/90 rounded-lg overflow-hidden border border-stone-800 flex items-center justify-center">
+            <svg className="w-full h-full" viewBox="0 0 500 80" preserveAspectRatio="none">
+              <polygon points="0,80 500,80 500,50 350,30 200,20 0,60" fill="#1e292d" />
+              <polygon points="0,60 200,20 350,30 500,50 500,42 350,22 200,12 0,52" fill={activeZone.riskScore > 75 ? "#7f1d1d" : activeZone.riskScore > 45 ? "#78350f" : "#064e3b"} />
+              <line x1="0" y1="52" x2="500" y2="42" stroke="#38bdf8" strokeWidth="2" strokeDasharray="4,4" />
+            </svg>
+            <div className="absolute top-2 left-3 text-[10px] font-mono text-cyan-300">
+              Active Slip Surface (Depth: ~3.8m &middot; Inclinometer Tilt: {activeZone.tilt}&deg;/hr)
+            </div>
+            <div className="absolute bottom-2 right-3 text-[10px] font-mono text-stone-300">
+              Risk Surface: <b className={activeZone.riskScore > 75 ? "text-red-400" : activeZone.riskScore > 45 ? "text-amber-400" : "text-emerald-400"}>{activeZone.riskScore}/100 ({activeZone.tier})</b>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. BOTTOM HUD COORDINATES & STATUS BAR */}
       <div className="absolute bottom-2.5 left-3 right-3 z-[1000] flex flex-wrap items-center justify-between gap-2 pointer-events-none">

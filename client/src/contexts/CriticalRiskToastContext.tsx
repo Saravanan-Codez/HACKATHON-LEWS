@@ -28,6 +28,9 @@ interface CriticalRiskToastContextType {
   alertHistory: CriticalAlertToast[];
   isMuted: boolean;
   toggleMute: () => void;
+  voiceEnabled: boolean;
+  toggleVoice: () => void;
+  broadcastVoiceAlert: (text: string, lang?: string) => void;
   notificationPermission: BrowserNotificationStatus;
   requestNotificationPermission: () => Promise<BrowserNotificationStatus>;
   showPermissionBanner: boolean;
@@ -40,6 +43,31 @@ interface CriticalRiskToastContextType {
 }
 
 const CriticalRiskToastContext = createContext<CriticalRiskToastContextType | undefined>(undefined);
+
+// Web Speech API Voice Evacuation Synthesizer
+export function speakEmergencyBroadcast(text: string, langCode: string = "EN") {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    const speechLangMap: Record<string, string> = {
+      EN: "en-IN",
+      KN: "kn-IN",
+      HI: "hi-IN",
+      TA: "ta-IN",
+      TE: "te-IN",
+      ML: "ml-IN",
+    };
+    utterance.lang = speechLangMap[langCode.toUpperCase()] || "en-IN";
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.debug("[Speech Synthesis Error]:", err);
+  }
+}
 
 // Web Audio API emergency chime synthesizer
 function playEmergencyChime() {
@@ -211,6 +239,27 @@ export function CriticalRiskToastProvider({ children }: { children: React.ReactN
 
   // Track recent trigger signatures to prevent rapid spam duplicate toasts (within 12 seconds per zone)
   const recentTriggersRef = useRef<Map<string, number>>(new Map());
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("landsora_voice_broadcast_enabled") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleVoice = useCallback(() => {
+    setVoiceEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("landsora_voice_broadcast_enabled", String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const broadcastVoiceAlert = useCallback((text: string, lang: string = "EN") => {
+    speakEmergencyBroadcast(text, lang);
+  }, []);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -262,6 +311,13 @@ export function CriticalRiskToastProvider({ children }: { children: React.ReactN
         playEmergencyChime();
       }
 
+      // 1b. Voice speech broadcast if voice is enabled
+      if (voiceEnabled) {
+        speakEmergencyBroadcast(
+          `Emergency landslide hazard warning in ${payload.zoneName}. Risk score is ${payload.riskScore} out of 100. Immediate precaution advised.`
+        );
+      }
+
       // 2. Dispatch real native HTML5 browser desktop push notification
       sendNativeBrowserNotification(`🚨 [CRITICAL HAZARD] ${payload.zoneName}`, {
         body:
@@ -279,7 +335,7 @@ export function CriticalRiskToastProvider({ children }: { children: React.ReactN
       // 4. Append to alert history (keep last 25)
       setAlertHistory((prev) => [newToast, ...prev.slice(0, 24)]);
     },
-    [isMuted]
+    [isMuted, voiceEnabled]
   );
 
   const dismissToast = useCallback((id: string) => {
@@ -362,6 +418,9 @@ export function CriticalRiskToastProvider({ children }: { children: React.ReactN
         alertHistory,
         isMuted,
         toggleMute,
+        voiceEnabled,
+        toggleVoice,
+        broadcastVoiceAlert,
         notificationPermission,
         requestNotificationPermission,
         showPermissionBanner,

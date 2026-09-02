@@ -42,7 +42,7 @@ type GeminiChatbotProps = {
   tilt?: number;
   riskScore?: number;
   riskLevel?: string;
-  language?: "EN" | "HI" | "TA" | "TE" | "KN" | "ML";
+  language?: string;
   onOpenGoogleAuth?: () => void;
 };
 
