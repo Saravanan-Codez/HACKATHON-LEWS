@@ -20,6 +20,7 @@ import {
 } from "./services/geminiAiService";
 import { getUserQuota, consumeUserQuota } from "./services/quotaService";
 import { translateText, translateBatch } from "./services/googleTranslateService";
+import { fetchLiveStationTelemetry } from "./services/liveTelemetryService";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
 
@@ -440,6 +441,20 @@ export const appRouter = router({
         ],
       };
     }),
+  }),
+  telemetry: router({
+    liveStation: publicProcedure
+      .input(
+        z.object({
+          zoneId: z.string().default("CUSTOM"),
+          lat: z.number(),
+          lng: z.number(),
+        })
+      )
+      .query(async ({ input }) => {
+        const data = await fetchLiveStationTelemetry(input.lat, input.lng, input.zoneId);
+        return data;
+      }),
   }),
   translate: router({
     text: publicProcedure

@@ -86,10 +86,11 @@ const BASEMAP_CONFIGS: Record<BasemapType, { url: string; attribution: string; m
     subdomains: ["a", "b", "c"],
   },
   DARK_GIS: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-    attribution: "&copy; Esri &mdash; HERE, Garmin, &copy; OpenStreetMap contributors",
-    maxNativeZoom: 16,
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution: "&copy; CARTO &copy; OpenStreetMap contributors",
+    maxNativeZoom: 19,
     maxZoom: 19,
+    subdomains: ["a", "b", "c", "d"],
   },
   STREET: {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -173,22 +174,24 @@ export function InteractiveGisMap({
     if (mapInstanceRef.current) return;
 
     try {
-      // Center on India mountain systems with clean upscaled zoom support
+      // Global World CRS with smooth world copy jump and no tile bounds clipping
       const map = L.map(mapContainerRef.current, {
-        center: [18.5, 77.0],
-        zoom: 6,
+        center: [20.0, 15.0],
+        zoom: 3,
         zoomControl: false,
         attributionControl: false,
-        minZoom: 3,
-        maxZoom: 19,
+        minZoom: 2,
+        maxZoom: 20,
+        worldCopyJump: true,
       });
 
-      // Tile Layer with safe maxNativeZoom and upscaled zoom
+      // Tile Layer with safe maxNativeZoom and continuous horizontal world wrapping
       const cfg = BASEMAP_CONFIGS["SATELLITE"];
       const tileLayer = L.tileLayer(cfg.url, {
         maxNativeZoom: cfg.maxNativeZoom,
-        maxZoom: 19,
-        subdomains: cfg.subdomains || "abc",
+        maxZoom: 20,
+        subdomains: cfg.subdomains || ["0", "1", "2", "3"],
+        noWrap: false,
       });
 
       if (tileLayer) {
@@ -245,16 +248,24 @@ export function InteractiveGisMap({
 
       mapInstanceRef.current = map;
 
-      // Trigger resize after layout settle
+      // Active ResizeObserver to continuously handle sidebar opening/closing without tile gaps
+      let resizeObserver: ResizeObserver | null = null;
+      if (typeof ResizeObserver !== "undefined" && mapContainerRef.current) {
+        resizeObserver = new ResizeObserver(() => {
+          map.invalidateSize();
+        });
+        resizeObserver.observe(mapContainerRef.current);
+      }
+
+      // Initial layout stabilization
       setTimeout(() => {
         try {
           map.invalidateSize();
-        } catch {
-          // no-op: some browser contexts block map invalidation during load
-        }
-      }, 200);
+        } catch {}
+      }, 150);
 
       return () => {
+        resizeObserver?.disconnect();
         map.remove();
         mapInstanceRef.current = null;
       };
@@ -274,19 +285,17 @@ export function InteractiveGisMap({
       }
 
       const cfg = BASEMAP_CONFIGS[basemap];
-      const newTile = L.tileLayer(cfg.url, {
+      const newLayer = L.tileLayer(cfg.url, {
         maxNativeZoom: cfg.maxNativeZoom,
-        maxZoom: 19,
-        subdomains: cfg.subdomains || "abc",
+        maxZoom: 20,
+        subdomains: cfg.subdomains || ["0", "1", "2", "3"],
+        noWrap: false,
       });
 
-      if (newTile) {
-        newTile.addTo(map);
-      }
-
-      tileLayerRef.current = newTile;
-    } catch (error) {
-      console.warn("Basemap update failed; continuing with the current map layer.", error);
+      newLayer.addTo(map);
+      tileLayerRef.current = newLayer;
+    } catch (err) {
+      console.error("Failed to switch basemap:", err);
     }
   }, [basemap]);
 
@@ -625,19 +634,19 @@ export function InteractiveGisMap({
                     : "text-stone-300 hover:text-white hover:bg-stone-800/80"
                 }`}
               >
-                {mode.replace("_", " ")}
+                {mode === "SATELLITE" ? "🛰️ SATELLITE" : mode === "TOPOGRAPHY" ? "⛰️ TOPO" : mode === "DARK_GIS" ? "🌑 DARK" : "🗺️ STREET"}
               </button>
             ))}
           </div>
 
-          <div className="hidden xl:flex items-center gap-1 bg-stone-900/95 backdrop-blur-md p-1 rounded-lg border border-stone-700/80 shadow-lg">
+          <div className="flex items-center gap-1 bg-stone-900/95 backdrop-blur-md p-1 rounded-lg border border-stone-700/80 shadow-lg">
             {[
-              { label: "🌏 WORLD", center: [20.0, 15.0] as [number, number], zoom: 2 },
-              { label: "🇮🇳 INDIA", center: [18.5, 77.0] as [number, number], zoom: 6 },
-              { label: "🇯🇵 ASIA", center: [24.0, 115.0] as [number, number], zoom: 4 },
+              { label: "🌏 ALL", center: [20.0, 15.0] as [number, number], zoom: 2 },
+              { label: "🇮🇳 INDIA", center: [18.5, 77.0] as [number, number], zoom: 5 },
+              { label: "🇯🇵 ASIA", center: [28.0, 105.0] as [number, number], zoom: 4 },
               { label: "🇪🇺 ALPS", center: [46.5, 10.0] as [number, number], zoom: 5 },
-              { label: "🌎 AMERICAS", center: [10.0, -80.0] as [number, number], zoom: 3 },
-              { label: "🌍 AFRICA/OC", center: [-15.0, 45.0] as [number, number], zoom: 3 },
+              { label: "🌎 AMER", center: [5.0, -75.0] as [number, number], zoom: 3 },
+              { label: "🌍 AF/OC", center: [-15.0, 45.0] as [number, number], zoom: 3 },
             ].map((item) => (
               <button
                 key={item.label}
@@ -673,7 +682,7 @@ export function InteractiveGisMap({
             }`}
             title="Toggle Safe Relief Camps & Evacuation Corridors"
           >
-            <span>🛡️ EVACUATION</span>
+            <span>🛡️ EVAC</span>
           </button>
 
           <button
@@ -699,17 +708,6 @@ export function InteractiveGisMap({
             <span>NASA ({nasaEvents.length})</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setShowHalos((prev) => !prev)}
-            className={`p-1.5 rounded text-stone-300 hover:text-white transition-colors ${
-              showHalos ? "text-amber-400" : "text-stone-500"
-            }`}
-            title={showHalos ? "Disable risk pulse rings" : "Enable risk pulse rings"}
-          >
-            {showHalos ? <Eye size={13} /> : <EyeOff size={13} />}
-          </button>
-
           <div className="h-4 w-px bg-stone-700 mx-0.5" />
 
           <button
@@ -732,15 +730,15 @@ export function InteractiveGisMap({
             type="button"
             onClick={handleResetOverview}
             className="p-1.5 rounded hover:bg-stone-800 text-stone-300 hover:text-white transition-colors"
-            title="Reset to India Overview"
+            title="Reset World Overview"
           >
             <RotateCcw size={13} />
           </button>
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="p-1.5 rounded hover:bg-stone-800 text-amber-300 hover:text-amber-200 transition-colors"
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen GIS Map"}
+            className="p-1.5 rounded hover:bg-stone-800 text-stone-300 hover:text-white transition-colors"
+            title={isFullscreen ? "Exit Fullscreen (Esc)" : "Fullscreen Map"}
           >
             {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
           </button>
