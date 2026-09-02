@@ -1,11 +1,25 @@
-/* Landsora High-Precision Regional Language Switcher Component */
-import { useState, useRef, useEffect } from "react";
-import { Compass, MapPin, Globe2, ChevronDown, Check } from "lucide-react";
+/* Landsora Google Translate Language Switcher Dropdown */
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { Compass, MapPin, Search, ChevronDown, Check, Sparkles, X } from "lucide-react";
 import {
   notificationLanguages,
   detectLanguageForZone,
   type NotificationLanguage,
 } from "@/lib/notificationTranslations";
+
+// Google Translate "文/A" SVG Icon
+export function GoogleTranslateIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m5 8 6 6" />
+      <path d="m4 14 6-6 2-3" />
+      <path d="M2 5h12" />
+      <path d="M7 2h1" />
+      <path d="m22 22-5-10-5 10" />
+      <path d="M14 18h6" />
+    </svg>
+  );
+}
 
 interface LanguageSwitcherProps {
   language: NotificationLanguage;
@@ -27,9 +41,14 @@ export function LanguageSwitcher({
   className = "",
 }: LanguageSwitcherProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"ALL" | "INDIAN" | "GLOBAL">("ALL");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const activeLangObj = notificationLanguages.find((l) => l.code === language) || notificationLanguages[0];
+  const activeLangObj = useMemo(
+    () => notificationLanguages.find((l) => l.code === language) || notificationLanguages[0],
+    [language]
+  );
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -41,171 +60,229 @@ export function LanguageSwitcher({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const filteredLanguages = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return notificationLanguages.filter((l) => {
+      const matchesTab =
+        activeTab === "ALL" ||
+        (activeTab === "INDIAN" && l.group === "Indian & Asian") ||
+        (activeTab === "GLOBAL" && l.group === "Global & European");
+
+      if (!matchesTab) return false;
+      if (!q) return true;
+
+      return (
+        l.code.toLowerCase().includes(q) ||
+        l.label.toLowerCase().includes(q) ||
+        l.nativeLabel.toLowerCase().includes(q)
+      );
+    });
+  }, [searchQuery, activeTab]);
+
   return (
-    <div className={`header-lang-wrapper ${className}`} ref={dropdownRef}>
-      {/* 1. Desktop Segmented Strip (Clean, high-contrast, zero-clipping) */}
-      <div className="hidden lg:inline-flex items-center gap-1 bg-[#131D1F] border border-stone-700/80 p-1 rounded-lg shadow-inner box-border">
-        {/* Auto Detect Button */}
-        <button
-          type="button"
-          className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-bold transition-all ${
-            autoDetectLanguage
-              ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
-              : "text-stone-400 hover:text-stone-200 hover:bg-stone-800/60"
-          }`}
-          onClick={() => {
-            const next = !autoDetectLanguage;
-            onAutoDetectToggle(next);
-            if (next) {
-              const autoLang = detectLanguageForZone(selectedZone);
-              onLanguageChange(autoLang);
-            }
-          }}
-          title={autoDetectLanguage ? "Auto-detection active (switches by focused mountain zone)" : "Enable automatic zone language detection"}
-        >
-          <Compass size={12} className={autoDetectLanguage ? "text-amber-400 animate-spin-slow" : "text-stone-400"} />
-          <span>AUTO</span>
-        </button>
+    <div className={`relative inline-block text-left ${className}`} ref={dropdownRef}>
+      {/* 1. Main Google Translate Dropdown Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setDropdownOpen((prev) => !prev)}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-900/95 hover:bg-stone-850 border border-stone-700/80 hover:border-amber-500/50 shadow-md transition-all text-stone-200 group"
+        title="Google Translate — Select Language"
+      >
+        <div className="flex items-center justify-center w-5 h-5 rounded bg-blue-600/20 text-blue-400 border border-blue-500/40 group-hover:scale-105 transition-transform">
+          <GoogleTranslateIcon className="w-3.5 h-3.5 text-blue-400" />
+        </div>
 
-        {/* GPS Button */}
-        <button
-          type="button"
-          className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] font-mono text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 transition-colors"
-          onClick={onDetectGpsLocation}
-          title="Detect GPS location and switch language"
-        >
-          <MapPin size={11} className="text-emerald-400" />
-          <span>GPS</span>
-        </button>
-
-        <span className="h-3.5 w-px bg-stone-700 mx-0.5" />
-
-        {/* 6 Indic Language Pills */}
-        {notificationLanguages.map((l) => {
-          const isActive = language === l.code;
-          return (
-            <button
-              key={l.code}
-              type="button"
-              className={`flex items-center gap-1 px-2 py-1 rounded text-[10.5px] font-mono font-bold transition-all ${
-                isActive
-                  ? autoDetectLanguage
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
-                    : "bg-amber-500 text-stone-950 font-extrabold shadow-md shadow-amber-500/20"
-                  : "text-stone-300 hover:text-white hover:bg-stone-800/80"
-              }`}
-              onClick={() => {
-                onAutoDetectToggle(false);
-                onLanguageChange(l.code);
-              }}
-              title={`Switch language to ${l.label} (${l.nativeLabel})`}
-            >
-              <span>{l.code}</span>
-              <span className="text-[10px] font-sans opacity-90 hidden xl:inline">
-                {l.label.charAt(0) + l.label.slice(1).toLowerCase()}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 2. Responsive Dropdown for Tablet & Mobile Screens */}
-      <div className="inline-flex lg:hidden items-center relative">
-        <button
-          type="button"
-          onClick={() => setDropdownOpen((v) => !v)}
-          className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-[#141F22] border border-stone-700/90 text-stone-200 rounded-lg text-xs font-mono transition-all"
-          aria-expanded={dropdownOpen}
-        >
-          <Globe2 size={13} className="text-amber-400" />
+        <div className="flex items-center gap-1.5 text-xs font-mono">
+          <span className="text-base leading-none">{"flag" in activeLangObj ? (activeLangObj as any).flag : "🌐"}</span>
           <span className="font-bold text-amber-300">{activeLangObj.code}</span>
-          <span className="font-sans text-xs text-stone-300">{activeLangObj.nativeLabel}</span>
+          <span className="hidden sm:inline text-stone-300 font-sans font-medium text-xs">
+            {activeLangObj.nativeLabel}
+          </span>
           {autoDetectLanguage && (
-            <span className="text-[8px] px-1 py-0.2 rounded bg-amber-400/20 text-amber-300 font-mono">
+            <span className="text-[9px] font-mono font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/40 px-1 rounded ml-0.5">
               AUTO
             </span>
           )}
-          <ChevronDown size={12} className={`text-stone-400 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
-        </button>
+        </div>
 
-        {dropdownOpen && (
-          <div className="absolute right-0 top-full mt-2 w-64 p-2 bg-[#121A1C] border border-stone-700 rounded-xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-2 py-1 mb-1.5 border-b border-stone-800 flex items-center justify-between text-[9px] font-mono text-stone-400 uppercase">
-              <span>Regional Language</span>
-              <span>6 Languages</span>
-            </div>
+        <ChevronDown
+          size={14}
+          className={`text-stone-400 group-hover:text-amber-400 transition-transform duration-200 ${
+            dropdownOpen ? "rotate-180 text-amber-400" : ""
+          }`}
+        />
+      </button>
 
-            <div className="grid grid-cols-2 gap-1.5 mb-2 pb-2 border-b border-stone-800">
+      {/* 2. Google Translate Dropdown Modal */}
+      {dropdownOpen && (
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl bg-stone-950/98 backdrop-blur-xl border border-stone-700/90 shadow-2xl z-[10000] overflow-hidden flex flex-col max-h-[480px] animate-in fade-in zoom-in-95 duration-150">
+          {/* Header */}
+          <div className="p-3 border-b border-stone-800/90 bg-stone-900/60 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                  <GoogleTranslateIcon className="w-4 h-4 text-blue-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-stone-100 font-mono tracking-wide uppercase flex items-center gap-1.5">
+                    <span>Google Translate</span>
+                    <span className="text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/40 px-1 py-0.2 rounded font-sans font-normal">
+                      Live
+                    </span>
+                  </h4>
+                  <p className="text-[10px] text-stone-400">Universal Multi-Language Engine</p>
+                </div>
+              </div>
               <button
                 type="button"
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[9px] font-mono border transition-all ${
-                  autoDetectLanguage
-                    ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
-                    : "bg-stone-900 border-stone-700 text-stone-300 hover:text-white"
-                }`}
-                onClick={() => {
-                  const next = !autoDetectLanguage;
-                  onAutoDetectToggle(next);
-                  if (next) {
-                    const autoLang = detectLanguageForZone(selectedZone);
-                    onLanguageChange(autoLang);
-                  }
-                  setDropdownOpen(false);
-                }}
+                onClick={() => setDropdownOpen(false)}
+                className="text-stone-400 hover:text-white p-1 rounded-md hover:bg-stone-800"
               >
-                <Compass size={11} /> AUTO DETECT
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[9px] font-mono bg-stone-900 border border-stone-700 text-stone-300 hover:text-white transition-all"
-                onClick={() => {
-                  onDetectGpsLocation();
-                  setDropdownOpen(false);
-                }}
-              >
-                <MapPin size={11} className="text-emerald-400" /> GPS LOCATE
+                <X size={14} />
               </button>
             </div>
 
-            <div className="space-y-1">
-              {notificationLanguages.map((l) => {
-                const isSelected = language === l.code;
-                return (
+            {/* Search Box */}
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input
+                type="text"
+                placeholder="Search languages (e.g., Kannada, Spanish, বাংলা)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-stone-900 border border-stone-700/80 text-xs text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-500/80 font-sans"
+                autoFocus
+              />
+            </div>
+
+            {/* Quick Auto / GPS Actions & Category Tabs */}
+            <div className="flex items-center justify-between gap-1 pt-1">
+              <div className="flex items-center gap-1">
+                {(["ALL", "INDIAN", "GLOBAL"] as const).map((tab) => (
                   <button
-                    key={l.code}
+                    key={tab}
                     type="button"
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-all ${
-                      isSelected
-                        ? "bg-amber-500/20 border border-amber-500/40 text-stone-100"
-                        : "hover:bg-stone-800/80 text-stone-300"
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all ${
+                      activeTab === tab
+                        ? "bg-amber-500 text-stone-950 shadow-sm"
+                        : "text-stone-400 hover:text-stone-200 hover:bg-stone-850"
                     }`}
-                    onClick={() => {
-                      onAutoDetectToggle(false);
-                      onLanguageChange(l.code);
-                      setDropdownOpen(false);
-                    }}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <span className="font-mono text-xs font-bold text-amber-400 w-6">
-                        {l.code}
-                      </span>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-medium font-sans text-stone-100">
-                          {l.nativeLabel}
-                        </span>
-                        <span className="font-mono text-[8px] text-stone-400">
-                          {l.label}
-                        </span>
-                      </div>
-                    </div>
-                    {isSelected && <Check size={13} className="text-amber-400" />}
+                    {tab}
                   </button>
-                );
-              })}
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !autoDetectLanguage;
+                    onAutoDetectToggle(next);
+                    if (next) {
+                      const autoLang = detectLanguageForZone(selectedZone);
+                      onLanguageChange(autoLang);
+                      setDropdownOpen(false);
+                    }
+                  }}
+                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono transition-all ${
+                    autoDetectLanguage
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      : "text-stone-400 hover:text-stone-200 bg-stone-900 border border-stone-800"
+                  }`}
+                  title="Auto-detect based on monitored mountain zone"
+                >
+                  <Compass size={11} className={autoDetectLanguage ? "animate-spin-slow text-emerald-400" : ""} />
+                  <span>ZONE AUTO</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDetectGpsLocation();
+                    setDropdownOpen(false);
+                  }}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono text-stone-400 hover:text-stone-200 bg-stone-900 border border-stone-800 hover:border-stone-700"
+                  title="Detect GPS coordinates"
+                >
+                  <MapPin size={11} className="text-emerald-400" />
+                  <span>GPS</span>
+                </button>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Language List */}
+          <div className="overflow-y-auto p-2 space-y-1 divide-y divide-stone-900/60 max-h-[300px]">
+            {filteredLanguages.length === 0 ? (
+              <div className="py-6 text-center text-xs text-stone-500 font-mono">
+                No languages matching &quot;{searchQuery}&quot;
+              </div>
+            ) : (
+              filteredLanguages.map((item) => {
+                const isSelected = language === item.code;
+                return (
+                  <button
+                    key={item.code}
+                    type="button"
+                    onClick={() => {
+                      onAutoDetectToggle(false);
+                      onLanguageChange(item.code);
+                      setDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all ${
+                      isSelected
+                        ? "bg-amber-500/15 border border-amber-500/40 text-amber-200 shadow-sm"
+                        : "hover:bg-stone-900 text-stone-300 hover:text-stone-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-lg leading-none shrink-0">
+                        {"flag" in item ? (item as any).flag : "🌐"}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-stone-100 font-sans truncate">
+                            {item.nativeLabel}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-amber-400/90 shrink-0">
+                            {item.code}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-stone-400 font-sans truncate">
+                          {item.label} &middot; <span className="text-stone-500">{item.group}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 ml-2">
+                      {isSelected ? (
+                        <div className="w-5 h-5 rounded-full bg-amber-500 text-stone-950 flex items-center justify-center shadow-sm">
+                          <Check size={12} strokeWidth={3} />
+                        </div>
+                      ) : (
+                        <span className="text-[9px] font-mono text-stone-500 group-hover:text-stone-300">
+                          GT
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-2 border-t border-stone-800/90 bg-stone-900/50 flex items-center justify-between text-[10px] text-stone-400 font-mono px-3">
+            <span className="flex items-center gap-1">
+              <Sparkles size={11} className="text-amber-400" />
+              <span>{notificationLanguages.length} Languages Supported</span>
+            </span>
+            <span className="text-stone-500">Google Cloud Neural MT</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

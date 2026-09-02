@@ -130,7 +130,7 @@ export const appRouter = router({
               tilt: z.number().optional(),
               riskScore: z.number().optional(),
               riskLevel: z.string().optional(),
-              language: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]).optional(),
+              language: z.string().optional(),
             })
             .optional(),
         })
@@ -165,7 +165,7 @@ export const appRouter = router({
         z.object({
           query: z.string().min(1).max(500),
           location: z.string().default("Western Ghats, India"),
-          language: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]).default("EN"),
+          language: z.string().default("EN"),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -211,7 +211,7 @@ export const appRouter = router({
         z.object({
           location: z.string().min(1),
           query: z.string().min(1),
-          language: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]).default("EN"),
+          language: z.string().default("EN"),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -261,7 +261,7 @@ export const appRouter = router({
     score: publicProcedure.input(z.object({ rainfallScore: z.number(), terrainScore: z.number(), historicalLandslideScore: z.number(), recentEventScore: z.number() })).query(({ input }) => calculatePrototypeRisk(input)),
     assistant: publicProcedure.input(z.object({
       question: z.string().min(1).max(500),
-      language: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]).catch("EN"),
+      language: z.string().default("EN"),
       location: z.string().default("Kodagu"),
       rainfall: z.number().default(0),
       weather: z.string().default("LIGHT RAIN"),
@@ -318,7 +318,7 @@ export const appRouter = router({
       historicalContext: z.string().default("Prototype baseline"),
       calculatedRiskScore: z.number().default(30),
       calculatedRiskLevel: z.string().default("LOW"),
-      language: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]).catch("EN"),
+      language: z.string().default("EN"),
       dataAvailable: z.boolean().default(false),
     })).mutation(async ({ ctx, input }) => {
       if (!ctx.user) {
@@ -417,7 +417,7 @@ export const appRouter = router({
       riskScore: z.number(),
       riskLevel: z.string(),
       operatorName: z.string(),
-      language: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]),
+      language: z.string().default("EN"),
       channels: z.array(z.string()),
     })).mutation(({ input }) => {
       const dispatchId = `DISPATCH-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -446,7 +446,7 @@ export const appRouter = router({
       .input(
         z.object({
           text: z.string().min(1),
-          targetLang: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]),
+          targetLang: z.string().min(2).max(10),
         })
       )
       .mutation(async ({ input }) => {
@@ -461,7 +461,7 @@ export const appRouter = router({
       .input(
         z.object({
           texts: z.array(z.string()),
-          targetLang: z.enum(["EN", "HI", "TA", "TE", "KN", "ML"]),
+          targetLang: z.string().min(2).max(10),
         })
       )
       .mutation(async ({ input }) => {

@@ -11,6 +11,8 @@ import {
 } from "@/components/DashboardSkeletons";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { GoogleAuthModal } from "@/components/GoogleAuthModal";
+import { SlopeStabilityModal } from "@/components/SlopeStabilityModal";
+import { HardwareSimulatorModal } from "@/components/HardwareSimulatorModal";
 import { InteractiveGisMap, type GisZone, type NasaEvent } from "@/components/InteractiveGisMap";
 import { useCriticalRiskToast } from "@/contexts/CriticalRiskToastContext";
 import { getDataPresentation } from "@/lib/dataPresentation";
@@ -61,6 +63,10 @@ import {
   Lock,
   MapPin,
   MapPinned,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Radio,
   RefreshCw,
   RotateCcw,
@@ -95,12 +101,18 @@ const assetUrl = (file: string) => {
   return `${ASSET_BASE}/${cleanName}`;
 };
 
+export type ContinentCode = "ALL" | "INDIA" | "ASIA_PACIFIC" | "EUROPE" | "AMERICAS" | "AFRICA_OCEANIA";
 type Tier = "STABLE" | "WATCH" | "CRITICAL";
 type Zone = {
   id: string;
   name: string;
   region: string;
+  continent: "INDIA" | "ASIA_PACIFIC" | "EUROPE" | "AMERICAS" | "AFRICA_OCEANIA";
+  country: string;
+  countryFlag: string;
   coords: string;
+  elevation: string;
+  geology: string;
   rainfall: number;
   soil: number;
   tilt: number;
@@ -118,18 +130,47 @@ type EonetEvent = { id: string; title: string; date: string; latitude: number; l
 type RoadStatus = "OPEN" | "RESTRICTED" | "AT RISK" | "BLOCKED" | "UNKNOWN";
 
 const initialZones: Zone[] = [
-  { id: "KDG-03", name: "Kodagu (Coorg)", region: "Western Ghats, Karnataka", coords: "12.3375, 75.8069", rainfall: 18.4, soil: 78.2, tilt: 0.084, baseline: 42, sensors: 12, history: [52, 55, 56, 58, 57, 60, 59, 61, 62, 60, 63, 64], tier: "WATCH", score: 64, sensitivity: { rain: 1.15, soil: 1.12, tilt: 0.9 }, batteryVoltage: 3.92, wifiRssi: -62 },
-  { id: "WYD-04", name: "Wayanad Meppadi", region: "Western Ghats, Kerala", coords: "11.6854, 76.1320", rainfall: 28.6, soil: 92.4, tilt: 0.142, baseline: 48, sensors: 14, history: [68, 72, 75, 78, 80, 84, 86, 88, 90, 92, 94, 94], tier: "CRITICAL", score: 94, sensitivity: { rain: 1.25, soil: 1.28, tilt: 1.15 }, batteryVoltage: 3.84, wifiRssi: -68 },
-  { id: "IDK-01", name: "Idukki Hill Tracts", region: "Western Ghats, Kerala", coords: "9.8500, 76.9700", rainfall: 22.1, soil: 86.5, tilt: 0.118, baseline: 45, sensors: 11, history: [62, 65, 68, 70, 74, 78, 80, 82, 84, 85, 86, 86], tier: "CRITICAL", score: 86, sensitivity: { rain: 1.2, soil: 1.15, tilt: 1.1 }, batteryVoltage: 3.88, wifiRssi: -65 },
-  { id: "NLG-05", name: "Nilgiris Coonoor", region: "Tamil Nadu", coords: "11.4102, 76.6950", rainfall: 11.2, soil: 53.6, tilt: 0.092, baseline: 39, sensors: 8, history: [41, 42, 41, 43, 44, 43, 45, 44, 46, 45, 47, 48], tier: "WATCH", score: 48, sensitivity: { rain: 0.88, soil: 0.9, tilt: 1.2 }, batteryVoltage: 3.82, wifiRssi: -71 },
-  { id: "UKA-02", name: "Uttara Kannada", region: "Western Ghats, Karnataka", coords: "14.7937, 74.6869", rainfall: 19.8, soil: 81.4, tilt: 0.095, baseline: 38, sensors: 9, history: [48, 52, 56, 62, 68, 72, 75, 78, 80, 80, 81, 81], tier: "CRITICAL", score: 81, sensitivity: { rain: 1.12, soil: 1.08, tilt: 0.95 }, batteryVoltage: 4.02, wifiRssi: -54 },
-  { id: "CHK-01", name: "Chikkamagaluru", region: "Western Ghats, Karnataka", coords: "13.3153, 75.7754", rainfall: 16.2, soil: 69.8, tilt: 0.078, baseline: 36, sensors: 10, history: [44, 46, 48, 52, 55, 58, 62, 65, 66, 68, 69, 69], tier: "WATCH", score: 69, sensitivity: { rain: 1.05, soil: 0.98, tilt: 0.88 }, batteryVoltage: 3.96, wifiRssi: -58 },
-  { id: "MNR-07", name: "Munnar Gap Road", region: "Western Ghats, Kerala", coords: "10.0889, 77.0595", rainfall: 15.4, soil: 70.2, tilt: 0.082, baseline: 38, sensors: 9, history: [42, 45, 49, 54, 58, 60, 62, 65, 66, 67, 68, 68], tier: "WATCH", score: 68, sensitivity: { rain: 1.08, soil: 1.02, tilt: 0.92 }, batteryVoltage: 3.90, wifiRssi: -60 },
-  { id: "VLP-08", name: "Valparai Anamalai", region: "Tamil Nadu", coords: "10.3204, 76.9558", rainfall: 14.0, soil: 66.5, tilt: 0.074, baseline: 35, sensors: 8, history: [38, 40, 42, 45, 48, 52, 55, 58, 60, 61, 62, 62], tier: "WATCH", score: 62, sensitivity: { rain: 0.95, soil: 0.96, tilt: 0.9 }, batteryVoltage: 3.94, wifiRssi: -64 },
-  { id: "MHD-09", name: "Mahad Varandha Ghat", region: "Western Ghats, Maharashtra", coords: "18.0667, 73.6167", rainfall: 21.4, soil: 77.5, tilt: 0.098, baseline: 41, sensors: 10, history: [50, 54, 58, 64, 68, 71, 73, 75, 75, 76, 76, 76], tier: "CRITICAL", score: 76, sensitivity: { rain: 1.18, soil: 1.1, tilt: 1.05 }, batteryVoltage: 3.86, wifiRssi: -66 },
-  { id: "SHM-10", name: "Shimla Bypass Ridge", region: "Himalayas, Himachal Pradesh", coords: "31.1048, 77.1734", rainfall: 6.4, soil: 38.2, tilt: 0.035, baseline: 24, sensors: 7, history: [22, 24, 25, 26, 25, 27, 28, 27, 28, 28, 28, 28], tier: "STABLE", score: 28, sensitivity: { rain: 0.85, soil: 0.82, tilt: 0.9 }, batteryVoltage: 4.10, wifiRssi: -52 },
-  { id: "CHM-11", name: "Chamoli Joshimath", region: "Himalayas, Uttarakhand", coords: "30.5500, 79.5667", rainfall: 12.5, soil: 54.0, tilt: 0.088, baseline: 36, sensors: 11, history: [36, 38, 40, 42, 45, 47, 50, 52, 53, 54, 54, 54], tier: "WATCH", score: 54, sensitivity: { rain: 0.95, soil: 0.92, tilt: 1.15 }, batteryVoltage: 3.92, wifiRssi: -69 },
-  { id: "DJE-06", name: "Darjeeling Kurseong", region: "Eastern Himalayas, West Bengal", coords: "27.0410, 88.2663", rainfall: 19.5, soil: 76.8, tilt: 0.108, baseline: 44, sensors: 13, history: [54, 58, 62, 66, 70, 72, 73, 74, 74, 75, 75, 75], tier: "CRITICAL", score: 75, sensitivity: { rain: 1.14, soil: 1.06, tilt: 1.2 }, batteryVoltage: 3.88, wifiRssi: -63 },
+  // --- INDIA & HIMALAYAN MOUNTAIN BELTS ---
+  { id: "KDG-03", name: "Kodagu (Coorg)", region: "Western Ghats, Karnataka", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "12.3375, 75.8069", elevation: "1,170m MSL", geology: "Weathered Granitic Gneiss & Laterite", rainfall: 18.4, soil: 78.2, tilt: 0.084, baseline: 42, sensors: 12, history: [52, 55, 56, 58, 57, 60, 59, 61, 62, 60, 63, 64], tier: "WATCH", score: 64, sensitivity: { rain: 1.15, soil: 1.12, tilt: 0.9 }, batteryVoltage: 3.92, wifiRssi: -62 },
+  { id: "WYD-04", name: "Wayanad Meppadi", region: "Western Ghats, Kerala", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "11.6854, 76.1320", elevation: "950m MSL", geology: "Fissured Charnockite & Thick Colluvium", rainfall: 28.6, soil: 92.4, tilt: 0.142, baseline: 48, sensors: 14, history: [68, 72, 75, 78, 80, 84, 86, 88, 90, 92, 94, 94], tier: "CRITICAL", score: 94, sensitivity: { rain: 1.25, soil: 1.28, tilt: 1.15 }, batteryVoltage: 3.84, wifiRssi: -68 },
+  { id: "IDK-01", name: "Idukki Hill Tracts", region: "Western Ghats, Kerala", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "9.8500, 76.9700", elevation: "1,200m MSL", geology: "Hornblende-Biotite Gneiss", rainfall: 22.1, soil: 86.5, tilt: 0.118, baseline: 45, sensors: 11, history: [62, 65, 68, 70, 74, 78, 80, 82, 84, 85, 86, 86], tier: "CRITICAL", score: 86, sensitivity: { rain: 1.2, soil: 1.15, tilt: 1.1 }, batteryVoltage: 3.88, wifiRssi: -65 },
+  { id: "NLG-05", name: "Nilgiris Coonoor", region: "Tamil Nadu", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "11.4102, 76.6950", elevation: "1,850m MSL", geology: "Archaean Charnockite Massif", rainfall: 11.2, soil: 53.6, tilt: 0.092, baseline: 39, sensors: 8, history: [41, 42, 41, 43, 44, 43, 45, 44, 46, 45, 47, 48], tier: "WATCH", score: 48, sensitivity: { rain: 0.88, soil: 0.9, tilt: 1.2 }, batteryVoltage: 3.82, wifiRssi: -71 },
+  { id: "UKA-02", name: "Uttara Kannada", region: "Western Ghats, Karnataka", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "14.7937, 74.6869", elevation: "620m MSL", geology: "Lateritized Metasediments", rainfall: 19.8, soil: 81.4, tilt: 0.095, baseline: 38, sensors: 9, history: [48, 52, 56, 62, 68, 72, 75, 78, 80, 80, 81, 81], tier: "CRITICAL", score: 81, sensitivity: { rain: 1.12, soil: 1.08, tilt: 0.95 }, batteryVoltage: 4.02, wifiRssi: -54 },
+  { id: "CHK-01", name: "Chikkamagaluru", region: "Western Ghats, Karnataka", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "13.3153, 75.7754", elevation: "1,090m MSL", geology: "Banded Iron Formation & Schist", rainfall: 16.2, soil: 69.8, tilt: 0.078, baseline: 36, sensors: 10, history: [44, 46, 48, 52, 55, 58, 62, 65, 66, 68, 69, 69], tier: "WATCH", score: 69, sensitivity: { rain: 1.05, soil: 0.98, tilt: 0.88 }, batteryVoltage: 3.96, wifiRssi: -58 },
+  { id: "MNR-07", name: "Munnar Gap Road", region: "Western Ghats, Kerala", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "10.0889, 77.0595", elevation: "1,530m MSL", geology: "High-grade Gneissic Escarpment", rainfall: 15.4, soil: 70.2, tilt: 0.082, baseline: 38, sensors: 9, history: [42, 45, 49, 54, 58, 60, 62, 65, 66, 67, 68, 68], tier: "WATCH", score: 68, sensitivity: { rain: 1.08, soil: 1.02, tilt: 0.92 }, batteryVoltage: 3.90, wifiRssi: -60 },
+  { id: "VLP-08", name: "Valparai Anamalai", region: "Tamil Nadu", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "10.3204, 76.9558", elevation: "1,190m MSL", geology: "Granulite Facies & Weathered Crust", rainfall: 14.0, soil: 66.5, tilt: 0.074, baseline: 35, sensors: 8, history: [38, 40, 42, 45, 48, 52, 55, 58, 60, 61, 62, 62], tier: "WATCH", score: 62, sensitivity: { rain: 0.95, soil: 0.96, tilt: 0.9 }, batteryVoltage: 3.94, wifiRssi: -64 },
+  { id: "MHD-09", name: "Mahad Varandha Ghat", region: "Western Ghats, Maharashtra", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "18.0667, 73.6167", elevation: "840m MSL", geology: "Deccan Traps Stratified Basalt", rainfall: 21.4, soil: 77.5, tilt: 0.098, baseline: 41, sensors: 10, history: [50, 54, 58, 64, 68, 71, 73, 75, 75, 76, 76, 76], tier: "CRITICAL", score: 76, sensitivity: { rain: 1.18, soil: 1.1, tilt: 1.05 }, batteryVoltage: 3.86, wifiRssi: -66 },
+  { id: "SHM-10", name: "Shimla Bypass Ridge", region: "Himalayas, Himachal Pradesh", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "31.1048, 77.1734", elevation: "2,206m MSL", geology: "Jutogh Metamorphic Phyllite & Quartzite", rainfall: 6.4, soil: 38.2, tilt: 0.035, baseline: 24, sensors: 7, history: [22, 24, 25, 26, 25, 27, 28, 27, 28, 28, 28, 28], tier: "STABLE", score: 28, sensitivity: { rain: 0.85, soil: 0.82, tilt: 0.9 }, batteryVoltage: 4.10, wifiRssi: -52 },
+  { id: "CHM-11", name: "Chamoli Joshimath", region: "Himalayas, Uttarakhand", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "30.5500, 79.5667", elevation: "1,890m MSL", geology: "Central Himalayan Vaikrita Gneiss", rainfall: 12.5, soil: 54.0, tilt: 0.088, baseline: 36, sensors: 11, history: [36, 38, 40, 42, 45, 47, 50, 52, 53, 54, 54, 54], tier: "WATCH", score: 54, sensitivity: { rain: 0.95, soil: 0.92, tilt: 1.15 }, batteryVoltage: 3.92, wifiRssi: -69 },
+  { id: "DJE-06", name: "Darjeeling Kurseong", region: "Eastern Himalayas, West Bengal", continent: "INDIA", country: "India", countryFlag: "🇮🇳", coords: "27.0410, 88.2663", elevation: "2,042m MSL", geology: "Darjeeling Gneiss & Glacial Silt", rainfall: 19.5, soil: 76.8, tilt: 0.108, baseline: 44, sensors: 13, history: [54, 58, 62, 66, 70, 72, 73, 74, 74, 75, 75, 75], tier: "CRITICAL", score: 75, sensitivity: { rain: 1.14, soil: 1.06, tilt: 1.2 }, batteryVoltage: 3.88, wifiRssi: -63 },
+
+  // --- EAST & SOUTHEAST ASIA / PACIFIC ---
+  { id: "FUJ-01", name: "Mount Fuji Volcanic Flank", region: "Shizuoka Prefecture", continent: "ASIA_PACIFIC", country: "Japan", countryFlag: "🇯🇵", coords: "35.3606, 138.7274", elevation: "3,776m MSL", geology: "Stratovolcanic Basaltic Scoria & Pyroclastic Ash", rainfall: 11.8, soil: 49.5, tilt: 0.048, baseline: 34, sensors: 16, history: [32, 34, 33, 35, 36, 38, 37, 39, 41, 40, 42, 42], tier: "WATCH", score: 42, sensitivity: { rain: 1.05, soil: 0.95, tilt: 1.2 }, batteryVoltage: 4.05, wifiRssi: -58 },
+  { id: "ALI-02", name: "Alishan Mountain Escarpment", region: "Chiayi County", continent: "ASIA_PACIFIC", country: "Taiwan", countryFlag: "🇹🇼", coords: "23.5100, 120.8000", elevation: "2,216m MSL", geology: "Tertiary Sandstone & Siltstone Interbeds", rainfall: 26.4, soil: 89.2, tilt: 0.125, baseline: 46, sensors: 14, history: [55, 60, 65, 70, 75, 78, 82, 85, 87, 88, 89, 89], tier: "CRITICAL", score: 89, sensitivity: { rain: 1.22, soil: 1.2, tilt: 1.1 }, batteryVoltage: 3.82, wifiRssi: -65 },
+  { id: "HKG-03", name: "Victoria & Lantau Peaks", region: "Hong Kong SAR", continent: "ASIA_PACIFIC", country: "Hong Kong", countryFlag: "🇭🇰", coords: "22.2753, 114.1489", elevation: "552m MSL", geology: "Decomposed Volcanic Tuff & Colluvial Boulders", rainfall: 17.2, soil: 71.0, tilt: 0.065, baseline: 38, sensors: 18, history: [38, 41, 44, 48, 52, 55, 58, 60, 62, 63, 64, 64], tier: "WATCH", score: 64, sensitivity: { rain: 1.18, soil: 1.12, tilt: 0.95 }, batteryVoltage: 4.12, wifiRssi: -50 },
+  { id: "BAG-04", name: "Baguio Cordillera Slopes", region: "Benguet, Luzon", continent: "ASIA_PACIFIC", country: "Philippines", countryFlag: "🇵🇭", coords: "16.4023, 120.5960", elevation: "1,470m MSL", geology: "Weathered Andesite & Faulted Volcanic Breccia", rainfall: 24.8, soil: 88.0, tilt: 0.115, baseline: 44, sensors: 12, history: [50, 56, 62, 68, 74, 78, 80, 82, 84, 85, 86, 86], tier: "CRITICAL", score: 86, sensitivity: { rain: 1.25, soil: 1.22, tilt: 1.05 }, batteryVoltage: 3.88, wifiRssi: -66 },
+  { id: "MRP-05", name: "Mount Marapi Active Slope", region: "West Sumatra", continent: "ASIA_PACIFIC", country: "Indonesia", countryFlag: "🇮🇩", coords: "-0.3814, 100.4739", elevation: "2,891m MSL", geology: "Loose Volcaniclastic Lahar Deposit & Ash", rainfall: 19.0, soil: 82.5, tilt: 0.098, baseline: 42, sensors: 11, history: [45, 49, 54, 60, 65, 70, 73, 75, 77, 78, 79, 79], tier: "CRITICAL", score: 79, sensitivity: { rain: 1.15, soil: 1.18, tilt: 1.12 }, batteryVoltage: 3.90, wifiRssi: -62 },
+  { id: "PKR-06", name: "Annapurna Pokhara Pass", region: "Gandaki Province", continent: "ASIA_PACIFIC", country: "Nepal", countryFlag: "🇳🇵", coords: "28.2096, 83.9856", elevation: "1,740m MSL", geology: "Glacio-fluvial Conglomerate & Himalayan Gneiss", rainfall: 14.5, soil: 62.0, tilt: 0.072, baseline: 36, sensors: 9, history: [34, 38, 41, 45, 48, 51, 54, 56, 57, 58, 59, 59], tier: "WATCH", score: 59, sensitivity: { rain: 1.02, soil: 0.98, tilt: 1.15 }, batteryVoltage: 4.00, wifiRssi: -60 },
+
+  // --- EUROPEAN ALPS & MEDITERRANEAN ---
+  { id: "ZER-01", name: "Zermatt Mattertal Basin", region: "Valais", continent: "EUROPE", country: "Switzerland", countryFlag: "🇨🇭", coords: "46.0207, 7.7491", elevation: "1,608m MSL", geology: "Penninic Ophiolite & Glacial Moraine", rainfall: 7.2, soil: 42.0, tilt: 0.040, baseline: 26, sensors: 15, history: [22, 23, 24, 25, 26, 27, 27, 28, 29, 29, 30, 30], tier: "STABLE", score: 30, sensitivity: { rain: 0.9, soil: 0.85, tilt: 1.25 }, batteryVoltage: 4.15, wifiRssi: -52 },
+  { id: "AML-02", name: "Amalfi Coastal Cliff", region: "Campania", continent: "EUROPE", country: "Italy", countryFlag: "🇮🇹", coords: "40.6340, 14.6027", elevation: "320m MSL", geology: "Fractured Mesozoic Dolomitic Limestone", rainfall: 16.8, soil: 73.5, tilt: 0.088, baseline: 39, sensors: 11, history: [40, 44, 48, 52, 57, 61, 64, 66, 68, 69, 70, 70], tier: "WATCH", score: 70, sensitivity: { rain: 1.1, soil: 1.05, tilt: 1.18 }, batteryVoltage: 3.95, wifiRssi: -56 },
+  { id: "CHX-03", name: "Chamonix Mont-Blanc Corridor", region: "Haute-Savoie", continent: "EUROPE", country: "France", countryFlag: "🇫🇷", coords: "45.9237, 6.8694", elevation: "1,035m MSL", geology: "Crystalline Hercynian Granite Massif", rainfall: 9.5, soil: 48.0, tilt: 0.052, baseline: 30, sensors: 14, history: [26, 28, 30, 32, 34, 35, 36, 37, 37, 38, 38, 38], tier: "STABLE", score: 38, sensitivity: { rain: 0.92, soil: 0.88, tilt: 1.2 }, batteryVoltage: 4.08, wifiRssi: -54 },
+  { id: "GEI-04", name: "Geiranger Fjord Rockwall", region: "Møre og Romsdal", continent: "EUROPE", country: "Norway", countryFlag: "🇳🇴", coords: "62.1008, 7.2059", elevation: "850m MSL", geology: "Precambrian Gneiss Steep Fjord Wall", rainfall: 12.0, soil: 55.4, tilt: 0.068, baseline: 35, sensors: 12, history: [32, 35, 38, 41, 44, 47, 49, 51, 52, 53, 54, 54], tier: "WATCH", score: 54, sensitivity: { rain: 0.96, soil: 0.9, tilt: 1.3 }, batteryVoltage: 4.10, wifiRssi: -55 },
+  { id: "INN-05", name: "Innsbruck Nordkette Ridge", region: "Tyrol", continent: "EUROPE", country: "Austria", countryFlag: "🇦🇹", coords: "47.2692, 11.4041", elevation: "1,905m MSL", geology: "Triassic Wetterstein Karst Limestone", rainfall: 8.8, soil: 44.0, tilt: 0.045, baseline: 28, sensors: 10, history: [25, 26, 28, 29, 31, 32, 33, 34, 35, 35, 36, 36], tier: "STABLE", score: 36, sensitivity: { rain: 0.88, soil: 0.85, tilt: 1.22 }, batteryVoltage: 4.14, wifiRssi: -53 },
+
+  // --- AMERICAS (NORTH & SOUTH) ---
+  { id: "BGR-01", name: "Big Sur Highway 1 Corridor", region: "California", continent: "AMERICAS", country: "United States", countryFlag: "🇺🇸", coords: "36.2704, -121.8081", elevation: "410m MSL", geology: "Franciscan Complex Mélange & Sheared Shale", rainfall: 21.0, soil: 79.0, tilt: 0.102, baseline: 43, sensors: 15, history: [52, 57, 62, 67, 72, 75, 78, 80, 81, 82, 83, 83], tier: "CRITICAL", score: 83, sensitivity: { rain: 1.16, soil: 1.12, tilt: 1.15 }, batteryVoltage: 3.92, wifiRssi: -60 },
+  { id: "OSO-02", name: "Oso Cascade River Valley", region: "Washington State", continent: "AMERICAS", country: "United States", countryFlag: "🇺🇸", coords: "48.2778, -121.9211", elevation: "185m MSL", geology: "Unconsolidated Glacial Outwash Silt & Clay", rainfall: 18.5, soil: 84.0, tilt: 0.088, baseline: 41, sensors: 12, history: [45, 49, 54, 59, 64, 68, 71, 73, 74, 75, 76, 76], tier: "CRITICAL", score: 76, sensitivity: { rain: 1.2, soil: 1.24, tilt: 1.0 }, batteryVoltage: 3.96, wifiRssi: -58 },
+  { id: "RIO-03", name: "Petrópolis Serra dos Órgãos", region: "Rio de Janeiro", continent: "AMERICAS", country: "Brazil", countryFlag: "🇧🇷", coords: "-22.5050, -43.1789", elevation: "845m MSL", geology: "Decomposed Biotite Granite & Colluvial Soil", rainfall: 25.2, soil: 90.5, tilt: 0.130, baseline: 47, sensors: 16, history: [60, 66, 72, 78, 83, 87, 89, 91, 92, 93, 94, 94], tier: "CRITICAL", score: 94, sensitivity: { rain: 1.26, soil: 1.25, tilt: 1.1 }, batteryVoltage: 3.80, wifiRssi: -70 },
+  { id: "MED-04", name: "Medellín Aburrá Canyon", region: "Antioquia", continent: "AMERICAS", country: "Colombia", countryFlag: "🇨🇴", coords: "6.2442, -75.5812", elevation: "1,495m MSL", geology: "Amphibolite & Deep Tropical Saprolite Crust", rainfall: 20.4, soil: 80.0, tilt: 0.096, baseline: 40, sensors: 14, history: [48, 53, 58, 64, 69, 73, 76, 78, 79, 80, 81, 81], tier: "CRITICAL", score: 81, sensitivity: { rain: 1.18, soil: 1.15, tilt: 1.08 }, batteryVoltage: 3.88, wifiRssi: -64 },
+  { id: "MCP-05", name: "Sacred Valley Urubamba", region: "Cusco Region", continent: "AMERICAS", country: "Peru", countryFlag: "🇵🇪", coords: "-13.1631, -72.5450", elevation: "2,430m MSL", geology: "Fractured Plutonic Granite & Terrace Alluvium", rainfall: 13.5, soil: 58.0, tilt: 0.075, baseline: 37, sensors: 10, history: [36, 39, 43, 47, 51, 54, 57, 59, 61, 62, 63, 63], tier: "WATCH", score: 63, sensitivity: { rain: 1.05, soil: 0.96, tilt: 1.2 }, batteryVoltage: 3.98, wifiRssi: -62 },
+  { id: "PAT-06", name: "Carretera Austral Fiord", region: "Aysén, Patagonia", continent: "AMERICAS", country: "Chile", countryFlag: "🇨🇱", coords: "-45.5712, -72.0683", elevation: "350m MSL", geology: "Patagonian Batholith & Glaciolacustrine Mud", rainfall: 15.0, soil: 68.0, tilt: 0.080, baseline: 36, sensors: 9, history: [38, 42, 46, 50, 54, 57, 60, 62, 64, 65, 66, 66], tier: "WATCH", score: 66, sensitivity: { rain: 1.1, soil: 1.04, tilt: 1.15 }, batteryVoltage: 4.02, wifiRssi: -59 },
+
+  // --- AFRICA & OCEANIA ---
+  { id: "KEN-01", name: "Mount Kenya Aberdare Ridge", region: "Central Province", continent: "AFRICA_OCEANIA", country: "Kenya", countryFlag: "🇰🇪", coords: "-0.1521, 37.3084", elevation: "2,300m MSL", geology: "Weathered Tertiary Phonolite & Basaltic Clay", rainfall: 17.0, soil: 74.5, tilt: 0.085, baseline: 38, sensors: 11, history: [42, 46, 50, 55, 60, 63, 66, 68, 70, 71, 72, 72], tier: "WATCH", score: 72, sensitivity: { rain: 1.12, soil: 1.1, tilt: 1.05 }, batteryVoltage: 3.94, wifiRssi: -63 },
+  { id: "DRK-02", name: "Drakensberg Amphitheatre", region: "KwaZulu-Natal", continent: "AFRICA_OCEANIA", country: "South Africa", countryFlag: "🇿🇦", coords: "-28.7500, 28.9167", elevation: "2,875m MSL", geology: "Karoo Basalt Cap over Cave Sandstone", rainfall: 8.0, soil: 40.0, tilt: 0.042, baseline: 25, sensors: 8, history: [22, 23, 25, 26, 28, 29, 30, 31, 32, 32, 33, 33], tier: "STABLE", score: 33, sensitivity: { rain: 0.85, soil: 0.8, tilt: 1.25 }, batteryVoltage: 4.12, wifiRssi: -50 },
+  { id: "QTN-03", name: "Southern Alps Queenstown", region: "Otago", continent: "AFRICA_OCEANIA", country: "New Zealand", countryFlag: "🇳🇿", coords: "-45.0312, 168.6626", elevation: "980m MSL", geology: "Haast Schist Complex & Alpine Fault Debris", rainfall: 12.8, soil: 57.0, tilt: 0.070, baseline: 34, sensors: 13, history: [30, 33, 37, 41, 45, 48, 51, 53, 54, 55, 56, 56], tier: "WATCH", score: 56, sensitivity: { rain: 0.98, soil: 0.92, tilt: 1.28 }, batteryVoltage: 4.06, wifiRssi: -56 },
 ];
 
 const formatTimestamp = (ts?: string) => {
@@ -226,6 +267,8 @@ export default function DashboardPage() {
   const [notificationKind, setNotificationKind] = useState<NotificationKind>("CRITICAL_WARNING");
   const [deviceHealthOpen, setDeviceHealthOpen] = useState(false);
   const [quarantineOpen, setQuarantineOpen] = useState(false);
+  const [slopeModalOpen, setSlopeModalOpen] = useState(false);
+  const [hardwareModalOpen, setHardwareModalOpen] = useState(false);
   const [operatorApprovalModal, setOperatorApprovalModal] = useState(false);
   const [operatorDeliveryLogs, setOperatorDeliveryLogs] = useState<{ channel: string; status: string; timestamp: string; messagePreview: string }[] | null>(null);
 
@@ -241,12 +284,21 @@ export default function DashboardPage() {
     alertHistory,
     isMuted,
     toggleMute,
+    voiceEnabled,
+    toggleVoice,
+    broadcastVoiceAlert,
     notificationPermission,
     requestNotificationPermission,
   } = useCriticalRiskToast();
 
   // Gemini AI Suite & Google Auth State
   const [googleAuthModalOpen, setGoogleAuthModalOpen] = useState(false);
+
+  // Collapsible Sidebars, Continent Tabs & Search State
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+  const [locationSearch, setLocationSearch] = useState("");
+  const [selectedContinent, setSelectedContinent] = useState<ContinentCode>("ALL");
 
   // Synchronize document language and data-lang attribute for clean Indic typography
   useEffect(() => {
@@ -267,7 +319,27 @@ export default function DashboardPage() {
   const liveAvailable = Boolean(liveQuery.data?.available);
   const displayedEvents = demoMode ? [] : liveEvents;
   const recentEvents = liveEvents.filter((event) => eventAgeDays(event.date) <= 30);
-  const zone = zones.find((z) => z.id === selected) || zones[1];
+  const zone = zones.find((z) => z.id === selected) || zones[0];
+
+  const filteredZones = useMemo(() => {
+    let result = zones;
+    if (selectedContinent !== "ALL") {
+      result = result.filter((z) => z.continent === selectedContinent);
+    }
+    if (locationSearch.trim()) {
+      const query = locationSearch.toLowerCase().trim();
+      result = result.filter(
+        (z) =>
+          z.name.toLowerCase().includes(query) ||
+          z.region.toLowerCase().includes(query) ||
+          z.country.toLowerCase().includes(query) ||
+          z.id.toLowerCase().includes(query) ||
+          z.tier.toLowerCase().includes(query) ||
+          z.geology.toLowerCase().includes(query)
+      );
+    }
+    return result;
+  }, [zones, selectedContinent, locationSearch]);
   const analysisPoint = selectedPoint ?? { latitude: Number(zone.coords.split(",")[0]), longitude: Number(zone.coords.split(",")[1]) };
   const nearestEvent = useMemo(() => (demoMode ? [] : liveEvents).reduce<{ event: EonetEvent | null; distance: number }>((best, event) => {
     const distance = distanceKm(analysisPoint, event);
@@ -365,6 +437,9 @@ export default function DashboardPage() {
         id: z.id,
         name: z.name,
         region: z.region,
+        continent: z.continent,
+        country: z.country,
+        countryFlag: z.countryFlag,
         coords: z.coords,
         lat,
         lng,
@@ -373,8 +448,8 @@ export default function DashboardPage() {
         tilt: z.tilt,
         riskScore: z.score,
         tier: z.tier,
-        elevation: "1,250m MSL",
-        geology: "Laterite & Weathered Regolith",
+        elevation: z.elevation,
+        geology: z.geology,
       };
     });
   }, [zones]);
@@ -922,6 +997,41 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
               </button>
             )}
 
+            {/* Voice Evacuation Speech Siren Toggle */}
+            <button
+              type="button"
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono border transition-all ${
+                voiceEnabled
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm"
+                  : "bg-stone-900 text-stone-400 border-stone-800 hover:text-stone-200"
+              }`}
+              onClick={toggleVoice}
+              title={voiceEnabled ? "Voice evacuation announcement active" : "Enable spoken voice alerts"}
+            >
+              <span>{voiceEnabled ? "🔊 VOICE ON" : "🔇 VOICE OFF"}</span>
+            </button>
+
+            {/* Geotechnical Mohr-Coulomb FoS Simulator Modal Trigger */}
+            <button
+              type="button"
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-cyan-950/40 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-900/40 transition-colors shadow-sm"
+              onClick={() => setSlopeModalOpen(true)}
+              title="Open Mohr-Coulomb Factor of Safety (FoS) Slope Simulator"
+            >
+              <span>⚖️ FoS MECHANICS</span>
+            </button>
+
+            {/* Live ESP32 Hardware Packet Injector Trigger */}
+            <button
+              type="button"
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors shadow-sm"
+              onClick={() => setHardwareModalOpen(true)}
+              title="Simulate live ESP32 telemetry packet transmission"
+            >
+              <Cpu size={11} className="text-amber-400" />
+              <span>⚡ INJECT PACKET</span>
+            </button>
+
             <button
               type="button"
               className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white border border-stone-800 transition-colors"
@@ -950,62 +1060,237 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
             >
               <FileText size={11} /> {t("INCIDENT REPORT")}
             </button>
+
+            <div className="h-4 w-px bg-stone-800 mx-1 hidden sm:block" />
+
+            {/* Quick Sidebar Viewport Toggles */}
+            <button
+              type="button"
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-semibold transition-colors ${
+                leftSidebarOpen
+                  ? "bg-stone-800 text-stone-200 border border-stone-700"
+                  : "bg-stone-900 text-stone-500 border border-stone-800 hover:text-stone-300"
+              }`}
+              onClick={() => setLeftSidebarOpen((prev) => !prev)}
+              title={leftSidebarOpen ? "Hide Stations List (More Map Area)" : "Show Stations List"}
+            >
+              {leftSidebarOpen ? <PanelLeftClose size={12} className="text-amber-400" /> : <PanelLeftOpen size={12} />}
+              <span>{t("STATIONS")}</span>
+            </button>
+
+            <button
+              type="button"
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-semibold transition-colors ${
+                rightSidebarOpen
+                  ? "bg-stone-800 text-stone-200 border border-stone-700"
+                  : "bg-stone-900 text-stone-500 border border-stone-800 hover:text-stone-300"
+              }`}
+              onClick={() => setRightSidebarOpen((prev) => !prev)}
+              title={rightSidebarOpen ? "Hide Details Sidebar (More Map Area)" : "Show Details Sidebar"}
+            >
+              <span>{t("DETAILS")}</span>
+              {rightSidebarOpen ? <PanelRightClose size={12} className="text-amber-400" /> : <PanelRightOpen size={12} />}
+            </button>
           </div>
         </div>
 
-        {/* Primary Operational Grid - Expansive 3-Column Command Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-5 items-start">
-          {/* Left Column: Zone Monitor List */}
-          <aside className="zone-monitor panel lg:col-span-3 xl:col-span-3 flex flex-col h-full">
-            <div className="panel-title">
-              <span>{t("ZONE MONITOR / SENSOR STATE")}</span>
-              <span className="mono">{zones.length.toString().padStart(2, '0')} / {zones.length.toString().padStart(2, '0')}</span>
-            </div>
-            <div className="zone-list">
-              {zones.map(z => (
-                <button
-                  key={z.id}
-                  className={`zone-row ${z.id === selected ? "selected" : ""}`}
-                  onClick={() => setSelected(z.id)}
-                >
-                  <div className="zone-info">
-                    <div className="zone-top">
-                      <span className="status-dot" style={{ background: statusColor(z.tier) }} />
-                      <strong>{z.name}</strong>
-                      <span className="zone-arrow">{z.score >= z.history[z.history.length - 2] ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}</span>
-                    </div>
-                    <div className="zone-bottom">
-                      <div className="zone-signal">
-                        <b style={{ color: statusColor(z.tier) }}>SENSOR {z.tier}</b>
-                        <span className="score">SIGNAL <b>{z.score}</b> <small>/ 100</small></span>
+        {/* Global Network Overview Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 mb-4">
+          <div className="p-2.5 bg-[#131D20] border border-stone-800/90 rounded-xl flex items-center justify-between shadow-sm">
+            <span className="text-[10px] font-mono text-stone-400">GLOBAL NODES</span>
+            <span className="text-xs font-mono font-bold text-stone-200">{zones.length} ACTIVE</span>
+          </div>
+          <div className="p-2.5 bg-[#131D20] border border-red-950/40 rounded-xl flex items-center justify-between shadow-sm">
+            <span className="text-[10px] font-mono text-red-400 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" /> CRITICAL</span>
+            <span className="text-xs font-mono font-bold text-red-300">{zones.filter(z => z.tier === "CRITICAL").length} SITES</span>
+          </div>
+          <div className="p-2.5 bg-[#131D20] border border-amber-950/40 rounded-xl flex items-center justify-between shadow-sm">
+            <span className="text-[10px] font-mono text-amber-400 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> WATCH</span>
+            <span className="text-xs font-mono font-bold text-amber-300">{zones.filter(z => z.tier === "WATCH").length} SITES</span>
+          </div>
+          <div className="p-2.5 bg-[#131D20] border border-emerald-950/40 rounded-xl flex items-center justify-between shadow-sm">
+            <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> STABLE</span>
+            <span className="text-xs font-mono font-bold text-emerald-300">{zones.filter(z => z.tier === "STABLE").length} SITES</span>
+          </div>
+          <div className="p-2.5 bg-[#131D20] border border-stone-800/90 rounded-xl flex items-center justify-between shadow-sm">
+            <span className="text-[10px] font-mono text-stone-400">AVG TILT RATE</span>
+            <span className="text-xs font-mono font-bold text-cyan-300">
+              {(zones.reduce((s, z) => s + z.tilt, 0) / zones.length).toFixed(3)}°/hr
+            </span>
+          </div>
+          <div className="p-2.5 bg-[#131D20] border border-stone-800/90 rounded-xl flex items-center justify-between shadow-sm">
+            <span className="text-[10px] font-mono text-stone-400">DATA LINK</span>
+            <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {demoMode ? "SIMULATED" : liveAvailable ? "NASA EONET" : "NOMINAL"}
+            </span>
+          </div>
+        </div>
+
+        {/* Primary Operational Grid - Expansive Dynamic Command Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 xl:gap-4 items-start relative">
+          {/* Left Column: Zone Monitor List (Collapsible) */}
+          {leftSidebarOpen && (
+            <aside className="zone-monitor panel lg:col-span-3 xl:col-span-3 flex flex-col h-full animate-in fade-in slide-in-from-left-2 duration-200">
+              <div className="panel-title flex items-center justify-between mb-2">
+                <span className="flex items-center gap-1.5">
+                  <MapPin size={13} className="text-amber-400" />
+                  {t("ZONE MONITOR")}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="mono text-[10px] text-stone-400">{filteredZones.length} / {zones.length}</span>
+                  <button
+                    type="button"
+                    onClick={() => setLeftSidebarOpen(false)}
+                    className="p-1 rounded text-stone-400 hover:text-stone-100 hover:bg-stone-800 transition-colors"
+                    title="Collapse Stations List (Wider Map)"
+                  >
+                    <PanelLeftClose size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Station Search Input */}
+              <div className="relative mb-2">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={locationSearch}
+                  onChange={(e) => setLocationSearch(e.target.value)}
+                  placeholder={t("Filter 32 world stations...")}
+                  className="w-full bg-[#101719] border border-stone-800 focus:border-amber-500/60 rounded-lg pl-7 pr-7 py-1.5 text-[11px] text-stone-200 placeholder-stone-500 font-mono outline-none transition-colors"
+                />
+                {locationSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setLocationSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-100 p-0.5"
+                    title="Clear search"
+                  >
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+
+              {/* Global Continent Filter Tabs */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-1.5 mb-2 scrollbar-none">
+                {[
+                  { id: "ALL" as ContinentCode, label: "ALL", count: zones.length },
+                  { id: "INDIA" as ContinentCode, label: "🇮🇳 INDIA", count: zones.filter(z => z.continent === "INDIA").length },
+                  { id: "ASIA_PACIFIC" as ContinentCode, label: "🌏 ASIA", count: zones.filter(z => z.continent === "ASIA_PACIFIC").length },
+                  { id: "EUROPE" as ContinentCode, label: "🇪🇺 ALPS", count: zones.filter(z => z.continent === "EUROPE").length },
+                  { id: "AMERICAS" as ContinentCode, label: "🌎 AMERICAS", count: zones.filter(z => z.continent === "AMERICAS").length },
+                  { id: "AFRICA_OCEANIA" as ContinentCode, label: "🌍 AFRICA/OC", count: zones.filter(z => z.continent === "AFRICA_OCEANIA").length },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSelectedContinent(tab.id)}
+                    className={`px-2 py-0.5 rounded text-[9.5px] font-mono whitespace-nowrap transition-all ${
+                      selectedContinent === tab.id
+                        ? "bg-amber-500 text-stone-950 font-bold shadow-sm"
+                        : "bg-stone-900/80 text-stone-400 hover:text-stone-200 border border-stone-800"
+                    }`}
+                  >
+                    {tab.label} <span className="opacity-75">({tab.count})</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="zone-list">
+                {filteredZones.length > 0 ? (
+                  filteredZones.map((z) => (
+                    <button
+                      key={z.id}
+                      className={`zone-row ${z.id === selected ? "selected" : ""}`}
+                      onClick={() => {
+                        setSelected(z.id);
+                        if (!rightSidebarOpen) setRightSidebarOpen(true);
+                      }}
+                    >
+                      <div className="zone-info">
+                        <div className="zone-top flex items-center gap-1.5">
+                          <span className="status-dot" style={{ background: statusColor(z.tier) }} />
+                          <span className="text-sm">{z.countryFlag}</span>
+                          <strong className="truncate">{z.name}</strong>
+                          <span className="zone-arrow">{z.score >= z.history[z.history.length - 2] ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}</span>
+                        </div>
+                        <div className="zone-bottom">
+                          <div className="zone-signal">
+                            <b style={{ color: statusColor(z.tier) }}>{z.id} &bull; {z.tier}</b>
+                            <span className="score">SIGNAL <b>{z.score}</b> <small>/ 100</small></span>
+                          </div>
+                          <span className="zone-region truncate max-w-[120px]">{z.region.toUpperCase()}</span>
+                        </div>
                       </div>
-                      <span className="zone-region">{z.region.toUpperCase()}</span>
-                    </div>
+                      <div className="zone-spark-col">
+                        <TinySpark values={z.history} color={statusColor(z.tier)} />
+                        <div className="flex items-center justify-between text-[7.5px] text-stone-400 font-mono">
+                          <span>{z.elevation}</span>
+                          <span>{t("RISK TRACE")}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-xs text-stone-500 font-mono">
+                    {t("No stations match search criteria.")}
                   </div>
-                  <div className="zone-spark-col">
-                    <TinySpark values={z.history} color={statusColor(z.tier)} />
-                    <span>{t("RISK TRACE")}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <div className="network">
-              <div className="panel-title">{t("SENSOR NETWORK")} <span className="online-mini"><i /> NOMINAL</span></div>
-              <div className="network-big">12 / 12 <span>{t("CHANNELS ONLINE")}</span></div>
-              <div className="network-row"><span>{t("DATA LINK")}</span><b>{demoMode ? "SIMULATED" : liveAvailable ? "NASA EONET" : "FALLBACK"}</b></div>
-              <div className="network-row"><span>{t("MQTT LATENCY")}</span><b>1.8 SEC</b></div>
-              <div className="network-row"><span>{t("NODE BATTERY")}</span><b>{zone.batteryVoltage}V ({Math.round(((zone.batteryVoltage - 3.2) / 1.0) * 100)}%)</b></div>
-            </div>
-          </aside>
+                )}
+              </div>
+              <div className="network">
+                <div className="panel-title">{t("SENSOR NETWORK")} <span className="online-mini"><i /> NOMINAL</span></div>
+                <div className="network-big">{zones.length} / {zones.length} <span>{t("CHANNELS ONLINE")}</span></div>
+                <div className="network-row"><span>{t("DATA LINK")}</span><b>{demoMode ? "SIMULATED" : liveAvailable ? "NASA EONET" : "FALLBACK"}</b></div>
+                <div className="network-row"><span>{t("MQTT LATENCY")}</span><b>1.4 SEC</b></div>
+                <div className="network-row"><span>{t("NODE BATTERY")}</span><b>{zone.batteryVoltage}V ({Math.round(((zone.batteryVoltage - 3.2) / 1.0) * 100)}%)</b></div>
+              </div>
+            </aside>
+          )}
 
           {/* Center Column: Terrain GIS Interactive Map (Expansive) */}
-          <div id="map-panel" className="map-panel panel lg:col-span-6 xl:col-span-6 2xl:col-span-6 flex flex-col p-0 overflow-hidden shadow-2xl rounded-xl border border-stone-800">
+          <div
+            id="map-panel"
+            className={`map-panel panel flex flex-col p-0 overflow-hidden shadow-2xl rounded-xl border border-stone-800 transition-all duration-300 relative ${
+              leftSidebarOpen && rightSidebarOpen
+                ? "lg:col-span-6 xl:col-span-6 2xl:col-span-6"
+                : (!leftSidebarOpen && rightSidebarOpen) || (leftSidebarOpen && !rightSidebarOpen)
+                ? "lg:col-span-9 xl:col-span-9 2xl:col-span-9"
+                : "lg:col-span-12 xl:col-span-12 2xl:col-span-12"
+            }`}
+          >
+            {/* Floating Left Sidebar Toggle Handle (When Left Closed) */}
+            {!leftSidebarOpen && (
+              <button
+                type="button"
+                onClick={() => setLeftSidebarOpen(true)}
+                className="absolute top-16 left-3 z-[1001] flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-900/95 backdrop-blur-md border border-stone-700/90 text-stone-200 hover:text-white hover:border-amber-500/50 shadow-xl text-xs font-mono transition-all pointer-events-auto animate-in fade-in duration-200"
+                title="Show Stations List"
+              >
+                <PanelLeftOpen size={14} className="text-amber-400" />
+                <span>STATIONS ({zones.length})</span>
+              </button>
+            )}
+
+            {/* Floating Right Sidebar Toggle Handle (When Right Closed) */}
+            {!rightSidebarOpen && (
+              <button
+                type="button"
+                onClick={() => setRightSidebarOpen(true)}
+                className="absolute top-16 right-3 z-[1001] flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-900/95 backdrop-blur-md border border-stone-700/90 text-stone-200 hover:text-white hover:border-amber-500/50 shadow-xl text-xs font-mono transition-all pointer-events-auto animate-in fade-in duration-200"
+                title="Show Station Details"
+              >
+                <span>DETAILS ({zone.id.split("-")[0]})</span>
+                <PanelRightOpen size={14} className="text-amber-400" />
+              </button>
+            )}
+
             <InteractiveGisMap
               zones={gisZones}
               selectedZoneId={selected}
               onSelectZone={(zoneId) => {
                 setSelected(zoneId);
                 setSelectedPoint(null);
+                if (!rightSidebarOpen) setRightSidebarOpen(true);
               }}
               onMapClickPoint={(point) => {
                 setSelectedPoint(point);
@@ -1016,61 +1301,94 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
             />
           </div>
 
-          {/* Right Column: Zone Intelligence & Gauges */}
-          <aside className="intelligence panel lg:col-span-3 xl:col-span-3 2xl:col-span-3 flex flex-col h-full">
-            <div className="panel-title">
-              <span>{t("ZONE INTELLIGENCE")}</span>
-              <span className="mono">{zone.id}</span>
-            </div>
-            <div className="selected-zone">
-              <span>{t("SELECTED NODE")}</span>
-              <h3>{zone.name}</h3>
-              <p>{zone.region} · {zone.coords}</p>
-            </div>
-            <div className="live-analysis">
-              <div className="live-analysis-title">
-                <span>{t("LOCATION TELEMETRY STATUS")}</span>
-                <strong>{validationResult.status}</strong>
-              </div>
-              <div className="analysis-grid">
-                <span>LAT / LONG<b>{analysisPoint.latitude.toFixed(4)}, {analysisPoint.longitude.toFixed(4)}</b></span>
-                <span>{t("DATA CONFIDENCE")}<b style={{ color: validationResult.overallConfidence > 80 ? "#6FA377" : "#D6A24E" }}>{validationResult.overallConfidence}%</b></span>
-                <span>{t("NEAREST REPORTED EVENT")}<b>{nearestEvent.event ? `${nearestEvent.distance.toFixed(0)} km` : "—"}</b></span>
-                <span>{t("LANDSORA RISK SCORE")}<b style={{ color: prototypeRiskColor }}>{prototypeRiskScore} / 100</b></span>
-              </div>
-            </div>
-            <div className="risk-block">
-              <div className="risk-label">
-                <span>{t("LANDSORA RISK SCORE")}</span>
-                <span style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</span>
-              </div>
-              <div className="gauge">
-                <div className="gauge-track">
-                  <div className="gauge-fill" style={{ width: `${prototypeRiskScore}%`, background: prototypeRiskColor }} />
+          {/* Right Column: Zone Intelligence & Gauges (Collapsible) */}
+          {rightSidebarOpen && (
+            <aside className="intelligence panel lg:col-span-3 xl:col-span-3 2xl:col-span-3 flex flex-col h-full animate-in fade-in slide-in-from-right-2 duration-200">
+              <div className="panel-title flex items-center justify-between mb-2">
+                <span className="flex items-center gap-1.5">
+                  <Activity size={13} className="text-amber-400" />
+                  {t("ZONE INTELLIGENCE")}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="mono text-[10px] text-amber-400/90">{zone.id}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRightSidebarOpen(false)}
+                    className="p-1 rounded text-stone-400 hover:text-stone-100 hover:bg-stone-800 transition-colors"
+                    title="Collapse Details Sidebar (Wider Map)"
+                  >
+                    <PanelRightClose size={13} />
+                  </button>
                 </div>
-                <div className="gauge-number">{prototypeRiskScore}<small>/100</small></div>
               </div>
-              <div className="advisory" style={{ borderColor: prototypeRiskColor }}>
-                <span>ADVISORY / {prototypeRiskLevel}</span>
-                <p>
-                  {t(
-                    prototypeRiskLevel === "LOW"
-                      ? "Slope conditions remain within seasonal stability margins."
-                      : prototypeRiskLevel === "MODERATE"
-                      ? "Moisture approaching plastic saturation limit. Maintain continuous monitoring."
-                      : prototypeRiskLevel === "HIGH"
-                      ? "Elevated pore pressure detected. Review mountain road corridors."
-                      : "Critical slope failure risk. Authority assessment and response procedures should be initiated."
-                  )}
-                </p>
+              <div className="selected-zone">
+                <div className="flex items-center justify-between">
+                  <span>{t("SELECTED NODE")}</span>
+                  <span className="text-[9.5px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    {zone.continent.replace("_", " ")}
+                  </span>
+                </div>
+                <h3 className="flex items-center gap-2 mt-1">
+                  <span>{zone.countryFlag}</span>
+                  <span className="truncate">{zone.name}</span>
+                </h3>
+                <p>{zone.region}, {zone.country} &middot; {zone.coords}</p>
+                <div className="mt-2.5 pt-2 border-t border-stone-800/80 grid grid-cols-2 gap-2 text-[10px] font-mono">
+                  <div>
+                    <span className="text-stone-400 block">ELEVATION</span>
+                    <strong className="text-stone-200">{zone.elevation}</strong>
+                  </div>
+                  <div>
+                    <span className="text-stone-400 block">LITHOLOGY</span>
+                    <strong className="text-amber-300 truncate block" title={zone.geology}>{zone.geology}</strong>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="metric-grid">
-              <Metric icon={<CloudRain size={15} />} label={t("RAINFALL")} value={zone.rainfall.toFixed(1)} unit="mm/hr" prev={zone.rainfall - 0.4} color="#84A6A0" />
-              <Metric icon={<Waves size={15} />} label={t("SOIL MOISTURE")} value={zone.soil.toFixed(1)} unit="%" prev={zone.soil - 0.6} color="#D6A24E" />
-              <Metric icon={<Wind size={15} />} label={t("SLOPE TILT")} value={zone.tilt.toFixed(3)} unit="°/hr" prev={zone.tilt - 0.002} color="#C28A70" />
-            </div>
-          </aside>
+              <div className="live-analysis">
+                <div className="live-analysis-title">
+                  <span>{t("LOCATION TELEMETRY STATUS")}</span>
+                  <strong>{validationResult.status}</strong>
+                </div>
+                <div className="analysis-grid">
+                  <span>LAT / LONG<b>{analysisPoint.latitude.toFixed(4)}, {analysisPoint.longitude.toFixed(4)}</b></span>
+                  <span>{t("DATA CONFIDENCE")}<b style={{ color: validationResult.overallConfidence > 80 ? "#6FA377" : "#D6A24E" }}>{validationResult.overallConfidence}%</b></span>
+                  <span>{t("NEAREST REPORTED EVENT")}<b>{nearestEvent.event ? `${nearestEvent.distance.toFixed(0)} km` : "—"}</b></span>
+                  <span>{t("LANDSORA RISK SCORE")}<b style={{ color: prototypeRiskColor }}>{prototypeRiskScore} / 100</b></span>
+                </div>
+              </div>
+              <div className="risk-block">
+                <div className="risk-label">
+                  <span>{t("LANDSORA RISK SCORE")}</span>
+                  <span style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</span>
+                </div>
+                <div className="gauge">
+                  <div className="gauge-track">
+                    <div className="gauge-fill" style={{ width: `${prototypeRiskScore}%`, background: prototypeRiskColor }} />
+                  </div>
+                  <div className="gauge-number">{prototypeRiskScore}<small>/100</small></div>
+                </div>
+                <div className="advisory" style={{ borderColor: prototypeRiskColor }}>
+                  <span>ADVISORY / {prototypeRiskLevel}</span>
+                  <p>
+                    {t(
+                      prototypeRiskLevel === "LOW"
+                        ? "Slope conditions remain within seasonal stability margins."
+                        : prototypeRiskLevel === "MODERATE"
+                        ? "Moisture approaching plastic saturation limit. Maintain continuous monitoring."
+                        : prototypeRiskLevel === "HIGH"
+                        ? "Elevated pore pressure detected. Review mountain road corridors."
+                        : "Critical slope failure risk. Authority assessment and response procedures should be initiated."
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="metric-grid">
+                <Metric icon={<CloudRain size={15} />} label={t("RAINFALL")} value={zone.rainfall.toFixed(1)} unit="mm/hr" prev={zone.rainfall - 0.4} color="#84A6A0" />
+                <Metric icon={<Waves size={15} />} label={t("SOIL MOISTURE")} value={zone.soil.toFixed(1)} unit="%" prev={zone.soil - 0.6} color="#D6A24E" />
+                <Metric icon={<Wind size={15} />} label={t("SLOPE TILT")} value={zone.tilt.toFixed(3)} unit="°/hr" prev={zone.tilt - 0.002} color="#C28A70" />
+              </div>
+            </aside>
+          )}
         </div>
 
         {/* Lower Telemetry & Explainability Grid */}
@@ -1623,6 +1941,25 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
         onSuccess={() => {
           authMeQuery.refetch();
           setNotice("Google Account successfully verified for AI operations.");
+        }}
+      />
+
+      {/* Geotechnical Mohr-Coulomb Factor of Safety (FoS) Slope Simulator Modal */}
+      <SlopeStabilityModal
+        isOpen={slopeModalOpen}
+        onClose={() => setSlopeModalOpen(false)}
+        zoneName={zone.name}
+        initialSoilMoisture={zone.soil}
+        initialTilt={zone.tilt}
+      />
+
+      {/* Live ESP32 Hardware Telemetry Ingest Packet Simulator Modal */}
+      <HardwareSimulatorModal
+        isOpen={hardwareModalOpen}
+        onClose={() => setHardwareModalOpen(false)}
+        nodeId={zone.id}
+        onTelemetryInjected={(data) => {
+          setNotice(`Telemetry injected successfully for ${data.nodeId || zone.id} (Calculated Risk: ${data.riskScore}/100)`);
         }}
       />
 

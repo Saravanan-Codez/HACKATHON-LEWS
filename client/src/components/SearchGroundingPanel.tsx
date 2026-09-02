@@ -5,7 +5,7 @@ import { GoogleAuthModal } from "./GoogleAuthModal";
 
 type SearchGroundingPanelProps = {
   location?: string;
-  language?: "EN" | "HI" | "TA" | "TE" | "KN" | "ML";
+  language?: string;
   onOpenGoogleAuth?: () => void;
 };
 

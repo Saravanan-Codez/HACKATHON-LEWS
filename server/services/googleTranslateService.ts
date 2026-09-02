@@ -4,12 +4,42 @@ import axios from "axios";
 const translationCache = new Map<string, string>();
 
 const LANG_CODE_MAP: Record<string, string> = {
+  // Indian & Regional Languages
   EN: "en",
   HI: "hi",
   KN: "kn",
   TA: "ta",
   TE: "te",
   ML: "ml",
+  BN: "bn",
+  MR: "mr",
+  GU: "gu",
+  PA: "pa",
+  OR: "or",
+  UR: "ur",
+  NE: "ne",
+
+  // Global & World Languages
+  ES: "es", // Spanish
+  FR: "fr", // French
+  DE: "de", // German
+  JA: "ja", // Japanese
+  ZH: "zh-CN", // Mandarin Chinese
+  AR: "ar", // Arabic
+  PT: "pt", // Portuguese
+  RU: "ru", // Russian
+  IT: "it", // Italian
+  ID: "id", // Indonesian
+  KO: "ko", // Korean
+  TR: "tr", // Turkish
+  VI: "vi", // Vietnamese
+  TH: "th", // Thai
+  SW: "sw", // Swahili
+  NL: "nl", // Dutch
+  PL: "pl", // Polish
+  EL: "el", // Greek
+  HE: "he", // Hebrew
+  UK: "uk", // Ukrainian
 };
 
 /**
