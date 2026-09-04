@@ -6,8 +6,6 @@ import { trpc } from "@/lib/trpc";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import {
   MapCanvasSkeleton,
-  AiRiskIntelligenceSkeleton,
-  AiAssistantSkeleton,
 } from "@/components/DashboardSkeletons";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { GoogleAuthModal } from "@/components/GoogleAuthModal";
@@ -18,7 +16,6 @@ import { InteractiveGisMap, type GisZone, type NasaEvent } from "@/components/In
 import { useCriticalRiskToast } from "@/contexts/CriticalRiskToastContext";
 import { getDataPresentation } from "@/lib/dataPresentation";
 
-import { createQueuedReport, saveQueuedReport } from "@/lib/reportQueue";
 import { useTranslation } from "@/lib/useTranslation";
 import {
   detectLanguageForZone,
@@ -43,6 +40,7 @@ import {
   BatteryCharging,
   Bell,
   Bot,
+  BarChart3,
   Check,
 
   CheckCircle2,
@@ -62,6 +60,7 @@ import {
   Hospital,
   Layers3,
   Lock,
+  LogIn,
   MapPin,
   MapPinned,
   PanelLeftClose,
@@ -196,7 +195,7 @@ function TrendChart({ values, tier }: { values: number[]; tier: Tier }) {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [zones, setZones] = useState(initialZones);
   const [selected, setSelected] = useState<string>(() => {
     if (typeof localStorage !== "undefined") {
@@ -260,8 +259,10 @@ export default function DashboardPage() {
   const [meteorologyModalOpen, setMeteorologyModalOpen] = useState(false);
 
   // Collapsible Sidebars, Continent Tabs & Search State
-  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+  const [bottomDrawerOpen, setBottomDrawerOpen] = useState(false);
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const [locationSearch, setLocationSearch] = useState("");
   const [selectedContinent, setSelectedContinent] = useState<ContinentCode>("ALL");
 
@@ -397,8 +398,12 @@ export default function DashboardPage() {
 
   const riskQuery = trpc.risk.score.useQuery(riskInputs, { staleTime: 2000 });
   const aiAnalysisMutation = trpc.risk.aiAnalysis.useMutation();
-  const assistantMutation = trpc.risk.assistant.useMutation();
-  const [assistantQuery, setAssistantQuery] = useState("");
+  const activeReportsQuery = trpc.reports.listActive.useQuery(undefined, { refetchInterval: 15000 });
+  const createReportMutation = trpc.reports.create.useMutation({
+    onSuccess: () => {
+      activeReportsQuery.refetch();
+    },
+  });
   const [lastAnalyzedLevel, setLastAnalyzedLevel] = useState<string | null>(null);
   const isRefreshingAi = useRef(false);
 
@@ -599,15 +604,38 @@ export default function DashboardPage() {
     }, () => setNotice("Location permission not granted; select a map point instead."));
   };
 
-  const submitReport = () => {
-    const reportId = `LANDSORA-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const queued = createQueuedReport({ reportId, category: reportCategory, severity: reportSeverity, description: reportDescription, location: reportLocation ?? analysisPoint, attachment: reportFile?.name ?? null });
-    saveQueuedReport(queued);
-    setReportSaved(true);
-    setReportOpen(false);
-    setNotice(`${reportId} queued for human verification.`);
-    setReportDescription("");
-    setReportFile(null);
+  const submitReport = async () => {
+    if (!isAuthenticated) {
+      setGoogleAuthModalOpen(true);
+      setNotice("Please sign in with Google to file an incident report.");
+      return;
+    }
+
+    if (!reportDescription.trim()) {
+      setNotice("Please enter a description of the observed slope conditions.");
+      return;
+    }
+
+    const loc = reportLocation ?? analysisPoint;
+
+    try {
+      const res = await createReportMutation.mutateAsync({
+        category: reportCategory,
+        severity: reportSeverity as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+        description: reportDescription.trim(),
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        attachmentName: reportFile?.name ?? null,
+      });
+
+      setReportSaved(true);
+      setReportOpen(false);
+      setNotice(`Incident ${res.report.reportId} recorded in database (active for 24 hours).`);
+      setReportDescription("");
+      setReportFile(null);
+    } catch (err: any) {
+      setNotice(err?.message || "Failed to submit report to database.");
+    }
   };
 
   const cycleNetwork = () => {
@@ -715,41 +743,6 @@ export default function DashboardPage() {
     setLastAnalyzedLevel(prototypeRiskLevel);
   };
 
-  const askAssistant = (customQuery?: string) => {
-    const queryToUse = (customQuery || assistantQuery).trim();
-    if (!queryToUse) return;
-
-    const validRiskLevel: "LOW" | "MODERATE" | "HIGH" | "CRITICAL" =
-      prototypeRiskLevel === "CRITICAL"
-        ? "CRITICAL"
-        : prototypeRiskLevel === "HIGH"
-        ? "HIGH"
-        : prototypeRiskLevel === "MODERATE" || prototypeRiskLevel === "WATCH"
-        ? "MODERATE"
-        : "LOW";
-
-    assistantMutation.mutate(
-      {
-        question: queryToUse.slice(0, 300),
-        language: language || "EN",
-        location: zone.name || "Kodagu",
-        rainfall: Number((zone.rainfall || 0).toFixed(1)),
-        weather: forecast[0]?.weather || "LIGHT RAIN",
-        soil: Number((zone.soil || 50).toFixed(1)),
-        tilt: Number((zone.tilt || 0.05).toFixed(3)),
-        recentEventCount: recentEvents.length || 0,
-        calculatedRiskScore: Math.round(prototypeRiskScore || 30),
-        calculatedRiskLevel: validRiskLevel,
-        dataAvailable: Boolean(liveAvailable && !demoMode),
-      },
-      {
-        onError: (err) => {
-          console.warn("[Landsora Q&A] Fallback to local assistant active:", err);
-        },
-      }
-    );
-  };
-
   useEffect(() => {
     if (shouldRefreshAiAnalysis({ previousLevel: lastAnalyzedLevel, currentLevel: prototypeRiskLevel, liveAvailable, demoMode })) {
       const timeout = window.setTimeout(() => {
@@ -764,25 +757,6 @@ export default function DashboardPage() {
       return () => window.clearTimeout(timeout);
     }
   }, [prototypeRiskLevel, liveAvailable, demoMode, lastAnalyzedLevel]);
-
-  // Export CSV Telemetry
-  const exportTelemetryCsv = () => {
-    const headers = "Timestamp,Zone,Rainfall_mm_hr,Soil_Moisture_Pct,Tilt_Rate_deg_hr,Risk_Score,Confidence_Pct\n";
-    const rows = zone.history.map((score, i) => {
-      const timeStr = `${lastUpdate.slice(0, 5)}:${String(Math.max(0, 40 - i * 2)).padStart(2, "0")}`;
-      return `${timeStr},${zone.name},${(zone.rainfall - i * 0.4).toFixed(1)},${(zone.soil - i * 0.8).toFixed(1)},${(zone.tilt - i * 0.001).toFixed(3)},${score},${validationResult.overallConfidence}`;
-    }).join("\n");
-
-    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Landsora_Telemetry_${zone.id}_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setNotice("Telemetry CSV exported successfully.");
-  };
 
   // Export Incident Summary Report
   const exportIncidentDossier = () => {
@@ -826,7 +800,7 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
 
   return (
     <div className="app-shell dashboard-app-shell">
-      {/* Top Application Header */}
+      {/* Top Application Header - Aerospace Minimalist Command Bar */}
       <header className="dashboard-app-header">
         <div className="dash-header-left">
           <Link href="/" className="dash-back-btn" title="Back to overview">
@@ -836,14 +810,204 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
           <div className="dash-header-brand">
             <div className="logo-wrap"><img src={assetUrl("lews-logo.png")} alt="Landsora logo" /></div>
             <div>
-              <div className="brand-name">LANDSORA CONSOLE</div>
-              <div className="brand-sub">IOT LANDSLIDE EARLY WARNING · {zone.name.toUpperCase()}</div>
+              <div className="brand-name">LANDSORA</div>
+              <div className="brand-sub">{zone.name.toUpperCase()} · {prototypeRiskScore}/100 {prototypeRiskLevel}</div>
             </div>
           </div>
         </div>
 
+        {/* Center: Tactical Flight Scenario Switcher */}
+        <div className="hidden md:flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-[#162028] border border-amber-500/30 rounded-none px-2.5 py-1 shadow-inner">
+            <Sliders size={12} className="text-amber-400" />
+            <select
+              value={scenario}
+              onChange={(e) => setDemoScenario(e.target.value as any)}
+              className="bg-transparent text-[11px] font-mono font-bold text-amber-300 focus:outline-none cursor-pointer pr-1"
+              title="Select Simulation & Stress Test Scenario"
+            >
+              <option value="NORMAL CONDITIONS" className="bg-[#11171D] text-stone-200">01 NORMAL CONDITIONS (BASELINE)</option>
+              <option value="PERSISTENT HEAVY RAIN" className="bg-[#11171D] text-stone-200">02 PERSISTENT MONSOON RAIN</option>
+              <option value="EXTREME STORM & TILT" className="bg-[#11171D] text-stone-200">03 EXTREME STORM & TILT SURGE</option>
+              <option value="BAD SENSOR DATA (TILT SPIKE)" className="bg-[#11171D] text-stone-200">04 GLITCH TELEMETRY QUARANTINE</option>
+              <option value="WEATHER API DELAYED" className="bg-[#11171D] text-stone-200">05 SATELLITE LATENCY & FALLBACK</option>
+              <option value="LOW BATTERY & DEGRADED" className="bg-[#11171D] text-stone-200">06 LOW SOLAR BATTERY DEGRADED</option>
+              <option value="CRITICAL ESCALATION (OPERATOR APPROVAL)" className="bg-[#11171D] text-stone-200">07 CRITICAL EVACUATION ESCALATION</option>
+            </select>
+          </div>
+
+          <span
+            className="flex items-center gap-1.5 px-2 py-1 rounded-none border text-[11px] font-mono font-semibold"
+            style={{
+              backgroundColor: validationResult.overallConfidence > 80 ? "rgba(16, 185, 129, 0.1)" : validationResult.overallConfidence > 50 ? "rgba(245, 158, 11, 0.1)" : "rgba(239, 68, 68, 0.1)",
+              borderColor: validationResult.overallConfidence > 80 ? "rgba(16, 185, 129, 0.3)" : validationResult.overallConfidence > 50 ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)",
+              color: validationResult.overallConfidence > 80 ? "#34D399" : validationResult.overallConfidence > 50 ? "#FBBF24" : "#F87171",
+            }}
+          >
+            <CheckCircle2 size={11} />
+            <span>{validationResult.overallConfidence}% CONFIDENCE</span>
+          </span>
+        </div>
+
+        {/* Right Header Controls */}
         <div className="dash-header-controls">
-          {/* 1-Click Regional Language Switcher with Indic Typography & Auto-Detect */}
+          {/* Direct Core Modals: Radar & FoS */}
+          <button
+            type="button"
+            className="hidden lg:flex items-center gap-1 px-2.5 py-1 rounded-none text-[11px] font-mono font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 transition-all shadow-sm"
+            onClick={() => setMeteorologyModalOpen(true)}
+            title="Open Live Weather & Atmospheric Radar Suite"
+          >
+            <span>🌦️ RADAR</span>
+          </button>
+
+          <button
+            type="button"
+            className="hidden lg:flex items-center gap-1 px-2.5 py-1 rounded-none text-[11px] font-mono font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-all shadow-sm"
+            onClick={() => setSlopeModalOpen(true)}
+            title="Open Mohr-Coulomb Factor of Safety (FoS) Slope Simulator"
+          >
+            <span>⚖️ FoS</span>
+          </button>
+
+          {/* Consolidated Operations & Tools Dropdown Menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setToolsMenuOpen(v => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-none text-[11px] font-mono font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-stone-200 hover:text-white border border-white/10 transition-all shadow-sm"
+              title="Open Tactical Edge Tools Menu"
+            >
+              <Cpu size={12} className="text-amber-400" />
+              <span>TOOLS</span>
+              <ChevronDown size={11} className="text-stone-400" />
+            </button>
+
+            {toolsMenuOpen && (
+              <div className="absolute top-full right-0 mt-1 w-64 bg-[#0c1015]/98 backdrop-blur-2xl border border-white/15 shadow-2xl p-2 z-50 text-xs font-mono space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-2 py-1 text-[9.5px] uppercase tracking-wider text-amber-400 font-bold border-b border-white/10 mb-1">
+                  TACTICAL OPERATIONS SUITE
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setHardwareModalOpen(true); setToolsMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-stone-300 hover:text-white hover:bg-white/[0.06] text-left transition-colors"
+                >
+                  <Cpu size={12} className="text-amber-400" />
+                  <span>⚡ Inject ESP32 Packet</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { exportIncidentDossier(); setToolsMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-stone-300 hover:text-white hover:bg-white/[0.06] text-left transition-colors"
+                >
+                  <FileText size={12} className="text-sky-400" />
+                  <span>📄 Export Incident Dossier (.md)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setDeviceHealthOpen(true); setToolsMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-stone-300 hover:text-white hover:bg-white/[0.06] text-left transition-colors"
+                >
+                  <ShieldCheck size={12} className="text-emerald-400" />
+                  <span>📡 ESP32 Nodes Registry ({zones.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setQuarantineOpen(true); setToolsMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-stone-300 hover:text-white hover:bg-white/[0.06] text-left transition-colors"
+                >
+                  <AlertOctagon size={12} className="text-rose-400" />
+                  <span>🛡️ Quarantined Anomalies ({getStoredQuarantine().length})</span>
+                </button>
+
+                <div className="border-t border-white/10 my-1 pt-1" />
+
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 text-stone-300 hover:text-white hover:bg-white/[0.06] text-left transition-colors"
+                >
+                  <span>Spoken Voice Alerts</span>
+                  <span className={`px-1.5 py-0.2 text-[10px] font-bold ${voiceEnabled ? "bg-amber-500/20 text-amber-300" : "bg-stone-800 text-stone-400"}`}>
+                    {voiceEnabled ? "ON" : "OFF"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDemoMode(v => !v)}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 text-stone-300 hover:text-white hover:bg-white/[0.06] text-left transition-colors"
+                >
+                  <span>Demo Mode</span>
+                  <span className={`px-1.5 py-0.2 text-[10px] font-bold ${demoMode ? "bg-amber-500/20 text-amber-300" : "bg-stone-800 text-stone-400"}`}>
+                    {demoMode ? "ON" : "OFF"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={cycleNetwork}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 text-stone-300 hover:text-white hover:bg-white/[0.06] text-left transition-colors"
+                >
+                  <span>Network Backhaul</span>
+                  <span className="text-[10px] text-emerald-400 font-bold">{networkState}</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Toggle Stations Drawer Button */}
+          <button
+            type="button"
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-none text-[11px] font-mono font-semibold transition-all ${
+              leftSidebarOpen
+                ? "bg-amber-500 text-stone-950 font-bold shadow-md shadow-amber-500/20"
+                : "bg-white/[0.04] text-stone-300 hover:text-white border border-white/10"
+            }`}
+            onClick={() => setLeftSidebarOpen(v => !v)}
+            title={leftSidebarOpen ? "Close Stations Drawer" : "Open Stations Drawer"}
+          >
+            <MapPin size={12} className={leftSidebarOpen ? "text-stone-950" : "text-amber-400"} />
+            <span>STATIONS ({zones.length})</span>
+          </button>
+
+          {/* Dedicated AI Companion */}
+          <Link
+            href="/ai-chatbot"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-none bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-[11px] font-bold text-amber-300 transition-all shadow-sm"
+            title="Open Dedicated AI Companion"
+          >
+            <Sparkles size={12} className="text-amber-400" />
+            <span className="hidden sm:inline">AI COMPANION</span>
+          </Link>
+
+          {/* Google Auth Status */}
+          {authMeQuery.data?.user ? (
+            <button
+              onClick={() => setGoogleAuthModalOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-none bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 text-[11px] font-medium text-emerald-300 transition-colors font-mono"
+              title={`Google Account: ${authMeQuery.data.user.email || authMeQuery.data.user.name}`}
+            >
+              <ShieldCheck size={12} className="text-emerald-400" />
+              <span>{authMeQuery.data.user.email?.split("@")[0] || authMeQuery.data.user.name || "GOOGLE"}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setGoogleAuthModalOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-none bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[11px] font-medium text-amber-300 transition-colors"
+              title="Connect Google Account"
+            >
+              <Sparkles size={11} className="text-amber-400" />
+              <span>CONNECT</span>
+            </button>
+          )}
+
+          {/* 1-Click Regional Language Switcher */}
           <LanguageSwitcher
             language={language}
             autoDetectLanguage={autoDetectLanguage}
@@ -862,505 +1026,267 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
             selectedZone={selected}
           />
 
-          <button className={`demo-toggle ${demoMode ? "is-on" : ""}`} onClick={() => setDemoMode(v => !v)} aria-pressed={demoMode}>
-            <span /> DEMO
-          </button>
-
-          <button className="dash-network-btn" onClick={cycleNetwork}>
-            {networkState === "ONLINE" ? <Wifi size={13} /> : <WifiOff size={13} />} {networkState}
-          </button>
-
-          {/* Dedicated AI Companion Navigation Link */}
-          <Link
-            href="/ai-chatbot"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-[11px] font-bold text-amber-300 transition-all shadow-sm"
-            title="Open Dedicated AI Companion"
-          >
-            <Sparkles size={13} className="text-amber-400" />
-            <span>AI COMPANION</span>
-          </Link>
-
-          {/* Google Account Authentication Status & Connect Button */}
-          {authMeQuery.data?.user ? (
-            <button
-              onClick={() => setGoogleAuthModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 text-[11px] font-medium text-emerald-300 transition-colors"
-              title={`Google Account connected: ${authMeQuery.data.user.email || authMeQuery.data.user.name}`}
-            >
-              <ShieldCheck size={12} className="text-emerald-400" />
-              <span className="font-mono">{authMeQuery.data.user.email?.split("@")[0] || authMeQuery.data.user.name || "GOOGLE"}</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setGoogleAuthModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-[11px] font-medium text-amber-300 transition-colors"
-              title="Connect Google Account to enable Gemini AI Features"
-            >
-              <Sparkles size={11} className="text-amber-400" />
-              <span>CONNECT GOOGLE</span>
-            </button>
-          )}
-
-          {/* User Account Session Indicator */}
-          {user && !authMeQuery.data?.user && (
-            <div className="dash-user-badge" title={`Signed in as ${(user as any).name || (user as any).email || "OPERATOR"}`}>
-              <Shield size={12} className="text-amber-400" />
-              <span>{(user as any).name || (user as any).email?.split("@")[0] || "OPERATOR"}</span>
-            </div>
-          )}
-
-
-
-          <Link href="/settings" className="dash-settings-link" title="Console Settings">
+          <Link href="/settings" className="dash-settings-link p-1 text-stone-400 hover:text-white" title="Console Settings">
             <SettingsIcon size={14} />
           </Link>
         </div>
       </header>
 
-      {/* Main Operational Container - Widescreen Expansive Layout */}
-      <main className="dashboard-main-area w-full max-w-[1920px] mx-auto px-3 sm:px-5 lg:px-6 py-4">
-        {/* Unified Operations Command Ribbon */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[#11171D]/90 backdrop-blur-xl border border-white/10 rounded-2xl mb-4 shadow-2xl text-xs font-mono">
-          {/* Group 1: Scenario Selector Dropdown */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-2 bg-[#162028] border border-amber-500/30 rounded-xl px-3 py-1.5 shadow-inner">
-              <Sliders size={13} className="text-amber-400" />
-              <select
-                value={scenario}
-                onChange={(e) => setDemoScenario(e.target.value as any)}
-                className="bg-transparent text-xs font-mono font-bold text-amber-300 focus:outline-none cursor-pointer pr-1"
-                title="Select Simulation & Stress Test Scenario"
-              >
-                <option value="NORMAL CONDITIONS" className="bg-[#11171D] text-stone-200">01 NORMAL CONDITIONS (BASELINE)</option>
-                <option value="PERSISTENT HEAVY RAIN" className="bg-[#11171D] text-stone-200">02 PERSISTENT MONSOON RAIN</option>
-                <option value="EXTREME STORM & TILT" className="bg-[#11171D] text-stone-200">03 EXTREME STORM & TILT SURGE</option>
-                <option value="BAD SENSOR DATA (TILT SPIKE)" className="bg-[#11171D] text-stone-200">04 GLITCH TELEMETRY QUARANTINE</option>
-                <option value="WEATHER API DELAYED" className="bg-[#11171D] text-stone-200">05 SATELLITE LATENCY & FALLBACK</option>
-                <option value="LOW BATTERY & DEGRADED" className="bg-[#11171D] text-stone-200">06 LOW SOLAR BATTERY DEGRADED</option>
-                <option value="CRITICAL ESCALATION (OPERATOR APPROVAL)" className="bg-[#11171D] text-stone-200">07 CRITICAL EVACUATION ESCALATION</option>
-              </select>
+      {/* Main Full-Viewport Geospatial Map Canvas & Floating Aerospace HUD */}
+      <main className="relative flex-1 w-full h-[calc(100vh-54px)] overflow-hidden">
+        {/* Full-Screen Base Map */}
+        <InteractiveGisMap
+          className="w-full h-full absolute inset-0 z-0"
+          zones={gisZones}
+          selectedZoneId={selected}
+          onSelectZone={(zoneId) => {
+            setSelected(zoneId);
+            setSelectedPoint(null);
+            if (!rightSidebarOpen) setRightSidebarOpen(true);
+          }}
+          onMapClickPoint={(point) => {
+            setSelectedPoint(point);
+            setNotice(`Analysis pin set to ${point.latitude}°N, ${point.longitude}°E`);
+          }}
+          selectedPoint={selectedPoint}
+          nasaEvents={displayedEvents}
+          rightPanelOpen={rightSidebarOpen}
+          bottomDrawerOpen={bottomDrawerOpen}
+        />
+
+        {/* Floating Left Reopen Tab (When Stations Panel Collapsed) */}
+        {!leftSidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setLeftSidebarOpen(true)}
+            className="absolute top-3 left-3 z-[1000] flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-[#0c1015]/90 hover:bg-[#162028] backdrop-blur-xl border border-white/10 hover:border-amber-500/50 text-stone-200 hover:text-white shadow-2xl text-xs font-mono font-bold transition-all pointer-events-auto animate-in fade-in duration-200"
+            title="Show Stations List"
+          >
+            <PanelLeftOpen size={13} className="text-amber-400" />
+            <span>STATIONS ({zones.length})</span>
+          </button>
+        )}
+
+        {/* Floating Left HUD: Zone Monitor List */}
+        {leftSidebarOpen && (
+          <aside className="gis-floating-hud absolute top-3 left-3 bottom-14 z-[1050] w-80 sm:w-84 md:w-88 flex flex-col pointer-events-auto animate-in fade-in slide-in-from-left-2 duration-200">
+            <div className="panel-title flex items-center justify-between p-3 border-b border-white/10 bg-white/[0.02]">
+              <span className="flex items-center gap-2 text-stone-200 font-mono text-xs font-bold">
+                <MapPin size={14} className="text-amber-400" />
+                <span>{t("ZONE MONITOR")}</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="mono text-[10px] text-stone-400 bg-white/[0.04] px-2 py-0.5 rounded-none border border-white/5">
+                  {filteredZones.length} / {zones.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLeftSidebarOpen(false)}
+                  className="p-1 rounded-none text-stone-400 hover:text-stone-100 hover:bg-white/[0.08] transition-colors"
+                  title="Collapse Stations List"
+                >
+                  <PanelLeftClose size={14} />
+                </button>
+              </div>
             </div>
 
-            <span
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold"
-              style={{
-                backgroundColor: validationResult.overallConfidence > 80 ? "rgba(16, 185, 129, 0.1)" : validationResult.overallConfidence > 50 ? "rgba(245, 158, 11, 0.1)" : "rgba(239, 68, 68, 0.1)",
-                borderColor: validationResult.overallConfidence > 80 ? "rgba(16, 185, 129, 0.3)" : validationResult.overallConfidence > 50 ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)",
-                color: validationResult.overallConfidence > 80 ? "#34D399" : validationResult.overallConfidence > 50 ? "#FBBF24" : "#F87171",
-              }}
-            >
-              <CheckCircle2 size={12} />
-              <span><b>{validationResult.overallConfidence}%</b> {t("CONFIDENCE")}</span>
-            </span>
-          </div>
-
-          {/* Group 2: Tactical Action Triggers */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 transition-all shadow-sm active:scale-95"
-              onClick={() => setMeteorologyModalOpen(true)}
-              title="Open Complete Live Weather & Atmospheric Radar Suite"
-            >
-              <span>🌦️ WEATHER RADAR</span>
-            </button>
-
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all shadow-sm active:scale-95"
-              onClick={() => setSlopeModalOpen(true)}
-              title="Open Mohr-Coulomb Factor of Safety (FoS) Slope Simulator"
-            >
-              <span>⚖️ FoS MECHANICS</span>
-            </button>
-
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all shadow-sm active:scale-95"
-              onClick={() => setHardwareModalOpen(true)}
-              title="Simulate live ESP32 telemetry packet transmission"
-            >
-              <Cpu size={12} className="text-amber-400" />
-              <span>⚡ INJECT PACKET</span>
-            </button>
-
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-stone-300 hover:text-white border border-white/10 transition-all shadow-sm active:scale-95"
-              onClick={exportIncidentDossier}
-            >
-              <FileText size={12} />
-              <span>{t("INCIDENT REPORT")}</span>
-            </button>
-
-            <button
-              type="button"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold border transition-all active:scale-95 ${
-                voiceEnabled
-                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm"
-                  : "bg-white/[0.03] text-stone-400 border-white/10 hover:text-stone-200"
-              }`}
-              onClick={toggleVoice}
-              title={voiceEnabled ? "Voice evacuation announcement active" : "Enable spoken voice alerts"}
-            >
-              <span>{voiceEnabled ? "🔊 VOICE ON" : "🔇 VOICE OFF"}</span>
-            </button>
-          </div>
-
-          {/* Group 3: Node Health & Workspace Sidebar Toggles */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-mono bg-white/[0.03] hover:bg-white/[0.08] text-stone-300 hover:text-white border border-white/10 transition-all"
-              onClick={() => setDeviceHealthOpen(true)}
-            >
-              <Cpu size={11} className="text-stone-400" /> ESP32 ({zones.length})
-            </button>
-
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-mono bg-white/[0.03] hover:bg-white/[0.08] text-stone-300 hover:text-white border border-white/10 transition-all"
-              onClick={() => setQuarantineOpen(true)}
-            >
-              <AlertOctagon size={11} className="text-stone-400" /> QUARANTINE ({getStoredQuarantine().length})
-            </button>
-
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-mono bg-white/[0.03] hover:bg-white/[0.08] text-stone-300 hover:text-white border border-white/10 transition-all"
-              onClick={exportTelemetryCsv}
-            >
-              <FileSpreadsheet size={11} className="text-stone-400" /> CSV
-            </button>
-
-            <div className="h-4 w-px bg-stone-700/80 mx-1 hidden sm:block" />
-
-            <button
-              type="button"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold transition-all ${
-                leftSidebarOpen
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                  : "bg-white/[0.03] text-stone-400 border border-white/10 hover:text-stone-200"
-              }`}
-              onClick={() => setLeftSidebarOpen((prev) => !prev)}
-              title={leftSidebarOpen ? "Hide Stations List (More Map Area)" : "Show Stations List"}
-            >
-              {leftSidebarOpen ? <PanelLeftClose size={13} className="text-amber-400" /> : <PanelLeftOpen size={13} />}
-              <span>{t("STATIONS")}</span>
-            </button>
-
-            <button
-              type="button"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-semibold transition-all ${
-                rightSidebarOpen
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                  : "bg-white/[0.03] text-stone-400 border border-white/10 hover:text-stone-200"
-              }`}
-              onClick={() => setRightSidebarOpen((prev) => !prev)}
-              title={rightSidebarOpen ? "Hide Details Sidebar (More Map Area)" : "Show Details Sidebar"}
-            >
-              <span>{t("DETAILS")}</span>
-              {rightSidebarOpen ? <PanelRightClose size={13} className="text-amber-400" /> : <PanelRightOpen size={13} />}
-            </button>
-          </div>
-        </div>
-
-        {/* Global Network Overview Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-4">
-          <div className="p-3 bg-[#11171D]/80 backdrop-blur-md border border-white/5 rounded-2xl flex items-center justify-between shadow-sm">
-            <span className="text-[10px] font-mono text-stone-400 font-semibold uppercase tracking-wider">GLOBAL NODES</span>
-            <span className="text-xs font-mono font-bold text-stone-100">{zones.length} ACTIVE</span>
-          </div>
-          <div className="p-3 bg-[#11171D]/80 backdrop-blur-md border border-red-500/20 rounded-2xl flex items-center justify-between shadow-sm">
-            <span className="text-[10px] font-mono text-red-400 font-semibold flex items-center gap-1.5 uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> CRITICAL
-            </span>
-            <span className="text-xs font-mono font-bold text-red-300">{zones.filter(z => z.tier === "CRITICAL").length} SITES</span>
-          </div>
-          <div className="p-3 bg-[#11171D]/80 backdrop-blur-md border border-amber-500/20 rounded-2xl flex items-center justify-between shadow-sm">
-            <span className="text-[10px] font-mono text-amber-400 font-semibold flex items-center gap-1.5 uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-amber-500" /> WATCH
-            </span>
-            <span className="text-xs font-mono font-bold text-amber-300">{zones.filter(z => z.tier === "WATCH").length} SITES</span>
-          </div>
-          <div className="p-3 bg-[#11171D]/80 backdrop-blur-md border border-emerald-500/20 rounded-2xl flex items-center justify-between shadow-sm">
-            <span className="text-[10px] font-mono text-emerald-400 font-semibold flex items-center gap-1.5 uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" /> STABLE
-            </span>
-            <span className="text-xs font-mono font-bold text-emerald-300">{zones.filter(z => z.tier === "STABLE").length} SITES</span>
-          </div>
-          <div className="p-3 bg-[#11171D]/80 backdrop-blur-md border border-white/5 rounded-2xl flex items-center justify-between shadow-sm">
-            <span className="text-[10px] font-mono text-stone-400 font-semibold uppercase tracking-wider">AVG TILT RATE</span>
-            <span className="text-xs font-mono font-bold text-sky-300">
-              {(zones.reduce((s, z) => s + z.tilt, 0) / zones.length).toFixed(3)}°/hr
-            </span>
-          </div>
-          <div className="p-3 bg-[#11171D]/80 backdrop-blur-md border border-white/5 rounded-2xl flex items-center justify-between shadow-sm">
-            <span className="text-[10px] font-mono text-stone-400 font-semibold uppercase tracking-wider">DATA LINK</span>
-            <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" /> {demoMode ? "SIMULATED" : liveAvailable ? "NASA EONET" : "NOMINAL"}
-            </span>
-          </div>
-        </div>
-
-        {/* Primary Operational Grid - Expansive Dynamic Command Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start relative">
-          {/* Left Column: Zone Monitor List (Collapsible) */}
-          {leftSidebarOpen && (
-            <aside className="zone-monitor panel lg:col-span-3 xl:col-span-3 flex flex-col h-full animate-in fade-in slide-in-from-left-2 duration-200">
-              <div className="panel-title flex items-center justify-between">
-                <span className="flex items-center gap-2 text-stone-200">
-                  <MapPin size={14} className="text-amber-400" />
-                  <span>{t("ZONE MONITOR")}</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="mono text-[10px] text-stone-400 bg-white/[0.04] px-2 py-0.5 rounded-full border border-white/5">
-                    {filteredZones.length} / {zones.length}
-                  </span>
+            {/* Station Search Input */}
+            <div className="px-3 pt-3 pb-1">
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={locationSearch}
+                  onChange={(e) => setLocationSearch(e.target.value)}
+                  placeholder={t("Filter 32 world stations...")}
+                  className="w-full bg-[#162028] border border-white/10 focus:border-amber-500/60 rounded-none pl-8 pr-8 py-2 text-xs text-stone-100 placeholder-stone-500 font-mono outline-none transition-all shadow-inner"
+                />
+                {locationSearch && (
                   <button
                     type="button"
-                    onClick={() => setLeftSidebarOpen(false)}
-                    className="p-1 rounded-lg text-stone-400 hover:text-stone-100 hover:bg-white/[0.08] transition-colors"
-                    title="Collapse Stations List (Wider Map)"
+                    onClick={() => setLocationSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-100 p-0.5"
+                    title="Clear search"
                   >
-                    <PanelLeftClose size={14} />
+                    <X size={12} />
                   </button>
-                </div>
-              </div>
-
-              {/* Station Search Input */}
-              <div className="px-3 pt-3 pb-1">
-                <div className="relative">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={locationSearch}
-                    onChange={(e) => setLocationSearch(e.target.value)}
-                    placeholder={t("Filter 32 world stations...")}
-                    className="w-full bg-[#162028] border border-white/10 focus:border-amber-500/60 rounded-xl pl-8 pr-8 py-2 text-xs text-stone-100 placeholder-stone-500 font-mono outline-none transition-all shadow-inner"
-                  />
-                  {locationSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setLocationSearch("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-100 p-0.5"
-                      title="Clear search"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Global Continent Filter Tabs */}
-              <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-2 scrollbar-none">
-                {[
-                  { id: "ALL" as ContinentCode, label: "ALL", count: zones.length },
-                  { id: "INDIA" as ContinentCode, label: "🇮🇳 INDIA", count: zones.filter(z => z.continent === "INDIA").length },
-                  { id: "ASIA_PACIFIC" as ContinentCode, label: "🌏 ASIA", count: zones.filter(z => z.continent === "ASIA_PACIFIC").length },
-                  { id: "EUROPE" as ContinentCode, label: "🇪🇺 ALPS", count: zones.filter(z => z.continent === "EUROPE").length },
-                  { id: "AMERICAS" as ContinentCode, label: "🌎 AMERICAS", count: zones.filter(z => z.continent === "AMERICAS").length },
-                  { id: "AFRICA_OCEANIA" as ContinentCode, label: "🌍 AFRICA/OC", count: zones.filter(z => z.continent === "AFRICA_OCEANIA").length },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setSelectedContinent(tab.id)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono whitespace-nowrap transition-all ${
-                      selectedContinent === tab.id
-                        ? "bg-amber-500 text-stone-950 font-bold shadow-md shadow-amber-500/20"
-                        : "bg-white/[0.03] text-stone-400 hover:text-stone-200 border border-white/5"
-                    }`}
-                  >
-                    {tab.label} <span className="opacity-70">({tab.count})</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="zone-list">
-                {filteredZones.length > 0 ? (
-                  filteredZones.map((z) => (
-                    <button
-                      key={z.id}
-                      className={`zone-row ${z.id === selected ? "selected" : ""}`}
-                      onClick={() => {
-                        setSelected(z.id);
-                        if (!rightSidebarOpen) setRightSidebarOpen(true);
-                      }}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-base leading-none shrink-0">{z.countryFlag}</span>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-stone-100 truncate">{z.name}</span>
-                              <span className="text-[9.5px] font-mono text-stone-400 bg-white/[0.04] px-1.5 py-0.2 rounded border border-white/5 shrink-0">{z.id}</span>
-                            </div>
-                            <span className="text-[10px] text-stone-400 font-mono truncate block">{z.region}, {z.country}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
-                          <span
-                            className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
-                            style={{
-                              backgroundColor: z.tier === "CRITICAL" ? "rgba(239,68,68,0.15)" : z.tier === "WATCH" ? "rgba(245,158,11,0.15)" : "rgba(16,185,129,0.15)",
-                              color: z.tier === "CRITICAL" ? "#F87171" : z.tier === "WATCH" ? "#FBBF24" : "#34D399",
-                              border: `1px solid ${z.tier === "CRITICAL" ? "rgba(239,68,68,0.3)" : z.tier === "WATCH" ? "rgba(245,158,11,0.3)" : "rgba(16,185,129,0.3)"}`,
-                            }}
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: z.tier === "CRITICAL" ? "#EF4444" : z.tier === "WATCH" ? "#F59E0B" : "#10B981" }} />
-                            {z.score}%
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-1.5 mt-2.5 pt-2 border-t border-white/5 text-[9.5px] font-mono text-stone-400">
-                        <div className="flex items-center gap-1">
-                          <span>🌧️</span> <b>{z.rainfall}mm</b>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span>💧</span> <b>{z.soil}%</b>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span>📐</span> <b>{z.tilt}°</b>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="p-6 text-center text-xs text-stone-500 font-mono">
-                    {t("No stations match search criteria.")}
-                  </div>
                 )}
               </div>
+            </div>
 
-              <div className="p-3 border-t border-white/10 bg-white/[0.01]">
-                <div className="flex items-center justify-between text-[10px] font-mono text-stone-400 mb-1.5">
-                  <span>NETWORK BACKHAUL</span>
-                  <span className="text-emerald-400 font-bold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> ONLINE
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
-                  <div className="bg-[#162028] p-2 rounded-lg border border-white/5">
-                    <span className="text-stone-500 block text-[9px]">ACTIVE NODES</span>
-                    <b className="text-stone-200">{zones.length} / {zones.length}</b>
-                  </div>
-                  <div className="bg-[#162028] p-2 rounded-lg border border-white/5">
-                    <span className="text-stone-500 block text-[9px]">SOLAR BATTERY</span>
-                    <b className="text-amber-300">{zone.batteryVoltage}V (94%)</b>
-                  </div>
-                </div>
-              </div>
-            </aside>
-          )}
+            {/* Global Continent Filter Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-2 scrollbar-none">
+              {[
+                { id: "ALL" as ContinentCode, label: "ALL", count: zones.length },
+                { id: "INDIA" as ContinentCode, label: "🇮🇳 INDIA", count: zones.filter(z => z.continent === "INDIA").length },
+                { id: "ASIA_PACIFIC" as ContinentCode, label: "🌏 ASIA", count: zones.filter(z => z.continent === "ASIA_PACIFIC").length },
+                { id: "EUROPE" as ContinentCode, label: "🇪🇺 ALPS", count: zones.filter(z => z.continent === "EUROPE").length },
+                { id: "AMERICAS" as ContinentCode, label: "🌎 AMER", count: zones.filter(z => z.continent === "AMERICAS").length },
+                { id: "AFRICA_OCEANIA" as ContinentCode, label: "🌍 AF/OC", count: zones.filter(z => z.continent === "AFRICA_OCEANIA").length },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSelectedContinent(tab.id)}
+                  className={`px-2 py-0.5 rounded-none text-[9.5px] font-mono whitespace-nowrap transition-all ${
+                    selectedContinent === tab.id
+                      ? "bg-amber-500 text-stone-950 font-bold shadow-md shadow-amber-500/20"
+                      : "bg-white/[0.03] text-stone-400 hover:text-stone-200 border border-white/5"
+                  }`}
+                >
+                  {tab.label} <span className="opacity-70">({tab.count})</span>
+                </button>
+              ))}
+            </div>
 
-          {/* Center Column: Terrain GIS Interactive Map (Expansive) */}
-          <div
-            id="map-panel"
-            className={`map-panel panel flex flex-col p-0 overflow-hidden shadow-2xl rounded-2xl border border-white/10 transition-all duration-300 relative ${
-              leftSidebarOpen && rightSidebarOpen
-                ? "lg:col-span-6 xl:col-span-6 2xl:col-span-6"
-                : (!leftSidebarOpen && rightSidebarOpen) || (leftSidebarOpen && !rightSidebarOpen)
-                ? "lg:col-span-9 xl:col-span-9 2xl:col-span-9"
-                : "lg:col-span-12 xl:col-span-12 2xl:col-span-12"
-            }`}
-          >
-            {/* Floating Left Sidebar Toggle Handle (When Left Closed) */}
-            {!leftSidebarOpen && (
-              <button
-                type="button"
-                onClick={() => setLeftSidebarOpen(true)}
-                className="absolute top-16 left-3 z-[1001] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#11171D]/90 backdrop-blur-xl border border-white/10 text-stone-200 hover:text-white hover:border-amber-500/50 shadow-2xl text-xs font-mono transition-all pointer-events-auto animate-in fade-in duration-200"
-                title="Show Stations List"
-              >
-                <PanelLeftOpen size={14} className="text-amber-400" />
-                <span>STATIONS ({zones.length})</span>
-              </button>
-            )}
-
-            {/* Floating Right Sidebar Toggle Handle (When Right Closed) */}
-            {!rightSidebarOpen && (
-              <button
-                type="button"
-                onClick={() => setRightSidebarOpen(true)}
-                className="absolute top-16 right-3 z-[1001] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#11171D]/90 backdrop-blur-xl border border-white/10 text-stone-200 hover:text-white hover:border-amber-500/50 shadow-2xl text-xs font-mono transition-all pointer-events-auto animate-in fade-in duration-200"
-                title="Show Station Details"
-              >
-                <span>DETAILS ({zone.id.split("-")[0]})</span>
-                <PanelRightOpen size={14} className="text-amber-400" />
-              </button>
-            )}
-
-            <InteractiveGisMap
-              zones={gisZones}
-              selectedZoneId={selected}
-              onSelectZone={(zoneId) => {
-                setSelected(zoneId);
-                setSelectedPoint(null);
-                if (!rightSidebarOpen) setRightSidebarOpen(true);
-              }}
-              onMapClickPoint={(point) => {
-                setSelectedPoint(point);
-                setNotice(`Analysis pin set to ${point.latitude}°N, ${point.longitude}°E`);
-              }}
-              selectedPoint={selectedPoint}
-              nasaEvents={displayedEvents}
-            />
-          </div>
-
-          {/* Right Column: Zone Intelligence & Gauges (Collapsible) */}
-          {rightSidebarOpen && (
-            <aside className="intelligence panel lg:col-span-3 xl:col-span-3 2xl:col-span-3 flex flex-col h-full animate-in fade-in slide-in-from-right-2 duration-200">
-              <div className="panel-title flex items-center justify-between">
-                <span className="flex items-center gap-2 text-stone-200">
-                  <Activity size={14} className="text-amber-400" />
-                  <span>{t("ZONE INTELLIGENCE")}</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="mono text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">{zone.id}</span>
+            {/* Scrollable Zone Telemetry List */}
+            <div className="zone-list flex-1 overflow-y-auto px-1">
+              {filteredZones.length > 0 ? (
+                filteredZones.map((z) => (
                   <button
-                    type="button"
-                    onClick={() => setRightSidebarOpen(false)}
-                    className="p-1 rounded-lg text-stone-400 hover:text-stone-100 hover:bg-white/[0.08] transition-colors"
-                    title="Collapse Details Sidebar (Wider Map)"
+                    key={z.id}
+                    className={`zone-row ${z.id === selected ? "selected" : ""}`}
+                    onClick={() => {
+                      setSelected(z.id);
+                      if (!rightSidebarOpen) setRightSidebarOpen(true);
+                    }}
                   >
-                    <PanelRightClose size={14} />
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base leading-none shrink-0">{z.countryFlag}</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-stone-100 truncate">{z.name}</span>
+                            <span className="text-[9.5px] font-mono text-stone-400 bg-white/[0.04] px-1.5 py-0.2 rounded-none border border-white/5 shrink-0">{z.id}</span>
+                          </div>
+                          <span className="text-[10px] text-stone-400 font-mono truncate block">{z.region}, {z.country}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
+                        <span
+                          className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-none flex items-center gap-1"
+                          style={{
+                            backgroundColor: z.tier === "CRITICAL" ? "rgba(239,68,68,0.15)" : z.tier === "WATCH" ? "rgba(245,158,11,0.15)" : "rgba(16,185,129,0.15)",
+                            color: z.tier === "CRITICAL" ? "#F87171" : z.tier === "WATCH" ? "#FBBF24" : "#34D399",
+                            border: `1px solid ${z.tier === "CRITICAL" ? "rgba(239,68,68,0.3)" : z.tier === "WATCH" ? "rgba(245,158,11,0.3)" : "rgba(16,185,129,0.3)"}`,
+                          }}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-none" style={{ backgroundColor: z.tier === "CRITICAL" ? "#EF4444" : z.tier === "WATCH" ? "#F59E0B" : "#10B981" }} />
+                          {z.score}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 mt-2 pt-1.5 border-t border-white/5 text-[9.5px] font-mono text-stone-400">
+                      <div className="flex items-center gap-1">
+                        <span>🌧️</span> <b>{z.rainfall}mm</b>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span>💧</span> <b>{z.soil}%</b>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span>📐</span> <b>{z.tilt}°</b>
+                      </div>
+                    </div>
                   </button>
+                ))
+              ) : (
+                <div className="p-6 text-center text-xs text-stone-500 font-mono">
+                  {t("No stations match search criteria.")}
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Health Strip inside HUD */}
+            <div className="p-2.5 border-t border-white/10 bg-black/40 shrink-0">
+              <div className="flex items-center justify-between text-[10px] font-mono text-stone-400 mb-1">
+                <span>NETWORK BACKHAUL</span>
+                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-none bg-emerald-500" /> ONLINE
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 text-[9.5px] font-mono">
+                <div className="bg-[#162028] p-1.5 rounded-none border border-white/5">
+                  <span className="text-stone-500 block text-[8.5px]">ACTIVE NODES</span>
+                  <b className="text-stone-200">{zones.length} / {zones.length}</b>
+                </div>
+                <div className="bg-[#162028] p-1.5 rounded-none border border-white/5">
+                  <span className="text-stone-500 block text-[8.5px]">SOLAR BATTERY</span>
+                  <b className="text-amber-300">{zone.batteryVoltage}V (94%)</b>
                 </div>
               </div>
+            </div>
+          </aside>
+        )}
 
+        {/* Floating Right Reopen Tab (When Details Panel Collapsed) */}
+        {!rightSidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setRightSidebarOpen(true)}
+            className="absolute top-3 right-[245px] z-[1000] hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-[#0c1015]/90 hover:bg-[#162028] backdrop-blur-xl border border-white/10 hover:border-amber-500/50 text-stone-200 hover:text-white shadow-2xl text-xs font-mono font-bold transition-all pointer-events-auto animate-in fade-in duration-200"
+            title="Show Station Details"
+          >
+            <Activity size={13} className="text-amber-400" />
+            <span>DETAILS: {zone.name.toUpperCase()} ({prototypeRiskScore}%)</span>
+            <PanelRightOpen size={13} className="text-stone-400" />
+          </button>
+        )}
+
+        {/* Floating Right HUD: Zone Intelligence & Gauges */}
+        {rightSidebarOpen && (
+          <aside className="gis-floating-hud absolute top-3 right-3 bottom-14 z-[1050] w-80 sm:w-84 md:w-88 flex flex-col pointer-events-auto animate-in fade-in slide-in-from-right-2 duration-200">
+            <div className="panel-title flex items-center justify-between p-3 border-b border-white/10 bg-white/[0.02]">
+              <span className="flex items-center gap-2 text-stone-200 font-mono text-xs font-bold">
+                <Activity size={14} className="text-amber-400" />
+                <span>{t("ZONE INTELLIGENCE")}</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="mono text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-none border border-amber-500/20">{zone.id}</span>
+                <button
+                  type="button"
+                  onClick={() => setRightSidebarOpen(false)}
+                  className="p-1 rounded-none text-stone-400 hover:text-stone-100 hover:bg-white/[0.08] transition-colors"
+                  title="Collapse Details Sidebar"
+                >
+                  <PanelRightClose size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Intelligence Body */}
+            <div className="flex-1 overflow-y-auto">
               {/* Station Hero Information Card */}
-              <div className="p-4 bg-white/[0.015] border-b border-white/10">
-                <div className="flex items-center justify-between mb-1.5">
+              <div className="p-3.5 bg-white/[0.015] border-b border-white/10">
+                <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider">{zone.continent.replace("_", " ")}</span>
-                  <span className="text-xs font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  <span className="text-xs font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-none border border-amber-500/20">
                     {zone.id}
                   </span>
                 </div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2 tracking-tight">
-                  <span className="text-xl leading-none">{zone.countryFlag}</span>
+                <h3 className="text-base font-bold text-white flex items-center gap-2 tracking-tight">
+                  <span className="text-lg leading-none">{zone.countryFlag}</span>
                   <span className="truncate">{zone.name}</span>
                 </h3>
-                <p className="text-xs text-stone-400 font-mono mt-0.5 truncate">{zone.region}, {zone.country} · {zone.coords}</p>
-                <div className="mt-3 pt-2.5 border-t border-white/5 grid grid-cols-2 gap-2 text-[10.5px] font-mono">
-                  <div className="bg-[#162028] p-2 rounded-lg border border-white/5">
-                    <span className="text-stone-400 block text-[9px]">ELEVATION</span>
+                <p className="text-[11px] text-stone-400 font-mono mt-0.5 truncate">{zone.region}, {zone.country} · {zone.coords}</p>
+                <div className="mt-2.5 pt-2 border-t border-white/5 grid grid-cols-2 gap-2 text-[10px] font-mono">
+                  <div className="bg-[#162028] p-1.5 rounded-none border border-white/5">
+                    <span className="text-stone-400 block text-[8.5px]">ELEVATION</span>
                     <strong className="text-stone-100 font-semibold">{zone.elevation}</strong>
                   </div>
-                  <div className="bg-[#162028] p-2 rounded-lg border border-white/5">
-                    <span className="text-stone-400 block text-[9px]">BEDROCK LITHOLOGY</span>
+                  <div className="bg-[#162028] p-1.5 rounded-none border border-white/5">
+                    <span className="text-stone-400 block text-[8.5px]">BEDROCK LITHOLOGY</span>
                     <strong className="text-amber-300 truncate block font-semibold" title={zone.geology}>{zone.geology}</strong>
                   </div>
                 </div>
               </div>
 
-              {/* Risk Score & Mohr-Coulomb Factor of Safety Gauge */}
-              <div className="p-4 border-b border-white/10 bg-white/[0.02]">
+              {/* Risk Score & Gauge */}
+              <div className="p-3.5 border-b border-white/10 bg-white/[0.02]">
                 <div className="flex items-center justify-between text-xs font-mono">
                   <span className="text-stone-400 uppercase tracking-wider">{t("LANDSORA RISK SCORE")}</span>
-                  <span className="font-bold px-2.5 py-0.5 rounded-full text-xs" style={{
+                  <span className="font-bold px-2 py-0.5 rounded-none text-xs" style={{
                     backgroundColor: `${prototypeRiskColor}20`,
                     borderColor: prototypeRiskColor,
                     color: prototypeRiskColor,
@@ -1370,10 +1296,10 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
                   </span>
                 </div>
 
-                <div className="mt-3 mb-2">
-                  <div className="h-2.5 w-full bg-white/[0.06] rounded-full overflow-hidden p-0.5">
+                <div className="mt-2.5 mb-2">
+                  <div className="h-2 w-full bg-white/[0.06] rounded-none overflow-hidden p-0.5">
                     <div
-                      className="h-full rounded-full transition-all duration-500"
+                      className="h-full rounded-none transition-all duration-500"
                       style={{
                         width: `${prototypeRiskScore}%`,
                         backgroundColor: prototypeRiskColor,
@@ -1384,11 +1310,11 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
                 </div>
 
                 <div className="flex items-baseline justify-between">
-                  <div className="text-3xl font-bold font-mono text-white tracking-tight">
-                    {prototypeRiskScore}<span className="text-sm font-normal text-stone-400 ml-1">/ 100</span>
+                  <div className="text-2xl font-bold font-mono text-white tracking-tight">
+                    {prototypeRiskScore}<span className="text-xs font-normal text-stone-400 ml-1">/ 100</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] font-mono text-stone-400 block">SLOPE FAILURE RISK</span>
+                    <span className="text-[9.5px] font-mono text-stone-400 block">SLOPE FAILURE RISK</span>
                     <span className="text-xs font-mono font-bold" style={{ color: prototypeRiskColor }}>
                       {prototypeRiskScore > 70 ? "IMMINENT DANGER" : prototypeRiskScore > 40 ? "ACTIVE SURVEILLANCE" : "LOW PROBABILITY"}
                     </span>
@@ -1396,17 +1322,17 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
                 </div>
 
                 <div
-                  className="mt-3 p-3 rounded-xl text-xs leading-relaxed border"
+                  className="mt-2.5 p-2.5 rounded-none text-xs leading-relaxed border"
                   style={{
                     backgroundColor: `${prototypeRiskColor}12`,
                     borderColor: `${prototypeRiskColor}30`,
                     color: "#E2E8F0",
                   }}
                 >
-                  <div className="font-mono font-bold text-[10px] uppercase tracking-wider mb-1" style={{ color: prototypeRiskColor }}>
+                  <div className="font-mono font-bold text-[9.5px] uppercase tracking-wider mb-1" style={{ color: prototypeRiskColor }}>
                     🚨 EVACUATION ADVISORY · {prototypeRiskLevel}
                   </div>
-                  <p className="text-[11.5px] text-stone-300">
+                  <p className="text-[11px] text-stone-300">
                     {t(
                       prototypeRiskLevel === "LOW"
                         ? "Stable conditions. Soil moisture and tilt readings are within normal seasonal limits. No movement detected."
@@ -1418,429 +1344,423 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
                 </div>
               </div>
 
-              {/* 4-Quadrant High-Density Sensor Vitals */}
-              <div className="p-4 grid grid-cols-2 gap-2.5 border-b border-white/10">
-                <div className="p-2.5 rounded-xl bg-[#162028] border border-white/5">
-                  <div className="flex items-center gap-1 text-[10px] font-mono text-stone-400">
+              {/* 4-Quadrant Sensor Vitals */}
+              <div className="p-3.5 grid grid-cols-2 gap-2 border-b border-white/10">
+                <div className="p-2 rounded-none bg-[#162028] border border-white/5">
+                  <div className="flex items-center gap-1 text-[9.5px] font-mono text-stone-400">
                     <span>🌧️</span>
                     <span>RAINFALL (24H)</span>
                   </div>
-                  <div className="text-xl font-bold font-mono text-blue-400 mt-1">{zone.rainfall} mm</div>
-                  <div className="text-[9.5px] font-mono text-stone-500 mt-0.5">Threshold: 100mm</div>
+                  <div className="text-lg font-bold font-mono text-blue-400 mt-1">{zone.rainfall} mm</div>
+                  <div className="text-[9px] font-mono text-stone-500 mt-0.5">Threshold: 100mm</div>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#162028] border border-white/5">
-                  <div className="flex items-center gap-1 text-[10px] font-mono text-stone-400">
+                <div className="p-2 rounded-none bg-[#162028] border border-white/5">
+                  <div className="flex items-center gap-1 text-[9.5px] font-mono text-stone-400">
                     <span>💧</span>
                     <span>PORE SATURATION</span>
                   </div>
-                  <div className="text-xl font-bold font-mono text-amber-400 mt-1">{zone.soil}%</div>
-                  <div className="text-[9.5px] font-mono text-stone-500 mt-0.5">Capacitive probe</div>
+                  <div className="text-lg font-bold font-mono text-amber-400 mt-1">{zone.soil}%</div>
+                  <div className="text-[9px] font-mono text-stone-500 mt-0.5">Capacitive probe</div>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#162028] border border-white/5">
-                  <div className="flex items-center gap-1 text-[10px] font-mono text-stone-400">
+                <div className="p-2 rounded-none bg-[#162028] border border-white/5">
+                  <div className="flex items-center gap-1 text-[9.5px] font-mono text-stone-400">
                     <span>📐</span>
                     <span>SLOPE TILT RATE</span>
                   </div>
-                  <div className="text-xl font-bold font-mono text-purple-400 mt-1">{zone.tilt}°/hr</div>
-                  <div className="text-[9.5px] font-mono text-stone-500 mt-0.5">Biaxial tiltmeter</div>
+                  <div className="text-lg font-bold font-mono text-purple-400 mt-1">{zone.tilt}°/hr</div>
+                  <div className="text-[9px] font-mono text-stone-500 mt-0.5">Biaxial tiltmeter</div>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-[#162028] border border-white/5">
-                  <div className="flex items-center gap-1 text-[10px] font-mono text-stone-400">
+                <div className="p-2 rounded-none bg-[#162028] border border-white/5">
+                  <div className="flex items-center gap-1 text-[9.5px] font-mono text-stone-400">
                     <span>⚖️</span>
                     <span>FACTOR OF SAFETY</span>
                   </div>
-                  <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
+                  <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
                     {liveData?.geotechnicalAnalysis?.factorOfSafety ? `FoS ${liveData.geotechnicalAnalysis.factorOfSafety}` : "FoS 1.42"}
                   </div>
-                  <div className="text-[9.5px] font-mono text-stone-500 mt-0.5">Mohr-Coulomb</div>
+                  <div className="text-[9px] font-mono text-stone-500 mt-0.5">Mohr-Coulomb</div>
                 </div>
               </div>
-
-              {/* Tactical Action Suite */}
-              <div className="p-4 space-y-2 mt-auto">
-                <button
-                  type="button"
-                  onClick={() => setMeteorologyModalOpen(true)}
-                  className="w-full py-2 px-3 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 text-xs font-mono font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <span>🌦️ EXPAND LIVE RADAR & FORECAST</span>
-                  <ArrowUpRight size={13} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSlopeModalOpen(true)}
-                  className="w-full py-2 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-mono font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <span>⚖️ MOHR-COULOMB SLOPE SIMULATOR</span>
-                  <ArrowUpRight size={13} />
-                </button>
-              </div>
-            </aside>
-          )}
-        </div>
-
-        {/* Lower Telemetry & Explainability Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 xl:gap-6 items-start mt-6">
-          <div className="chart-panel panel md:col-span-2 lg:col-span-5">
-            <div className="panel-title">
-              <span>{t("RISK SCORE — LAST 16 READINGS")}</span>
-              <span className="trend"><ArrowUpRight size={14} /> TREND {delta(prototypeRiskScore, zone.history[zone.history.length - 2])}</span>
-            </div>
-            <TrendChart values={zone.history} tier={prototypeTier} />
-            <div className="chart-stats">
-              <span>CURRENT <b>{prototypeRiskScore}</b></span>
-              <span>PREVIOUS <b>{zone.history[zone.history.length - 2]}</b></span>
-              <span>RECENT HIGH <b>{Math.max(...zone.history)}</b></span>
-              <span>STATUS <b style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</b></span>
-            </div>
-          </div>
-
-          <div className="explain panel md:col-span-1 lg:col-span-4">
-            <div className="panel-title">
-              <span>{t("WHY THIS SCORE?")}</span>
-              <span className="mono">{t("DETERMINISTIC 4-FACTOR BREAKDOWN")}</span>
-            </div>
-            <p>Risk is <b style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</b> calculated via auditable formula without black-box AI:</p>
-            <div className="contributions">
-              {[
-                ["RAINFALL INTENSITY", riskInputs.rainfallScore, "#84A6A0"],
-                ["TERRAIN / TILT ACCELERATION", riskInputs.terrainScore, "#C28A70"],
-                ["GEOLOGICAL BASELINE", riskInputs.historicalLandslideScore, "#D6A24E"],
-                ["REGIONAL EVENT CONTEXT", riskInputs.recentEventScore, "#C24B3F"]
-              ].map(([label, val, color]) => (
-                <div className="contrib" key={label as string}>
-                  <span>{t(label as string)}<b>{Math.round((val as number) / 4)} / 100</b></span>
-                  <i><em style={{ width: `${val as number}%`, background: color as string }} /></i>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="history panel md:col-span-1 lg:col-span-3">
-            <div className="panel-title">
-              <span>{t("SENSOR HISTORY LOG")}</span>
-              <span className="mono">{t("LAST 5 READINGS")}</span>
-            </div>
-            <div className="history-head">
-              <span>TIME</span><span>{t("RAINFALL")}</span><span>{t("SOIL MOISTURE")}</span><span>{t("SLOPE TILT")}</span>
-            </div>
-            {zone.history.slice(-5).reverse().map((v, i) => (
-              <div className="history-row" key={`${v}-${i}`}>
-                <span>{i === 0 ? lastUpdate : `${lastUpdate.slice(0, 5)}:${String(Math.max(0, 38 - i * 2)).padStart(2, "0")}`}</span>
-                <span>{(zone.rainfall - (4 - i) * .7).toFixed(1)}</span>
-                <span>{(zone.soil - (4 - i) * 1.1).toFixed(1)}%</span>
-                <span>{(zone.tilt - (4 - i) * .002).toFixed(3)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Decision Support & Field Operations Suite */}
-        <section className="operations-addendum mt-10">
-          <div className="section-coordinate">DECISION SUPPORT / 07</div>
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow"><span className="rule" /> FIELD DECISION TOOLS / 07</div>
-              <h2>From sensor signals <em>to clear field orders.</em></h2>
-            </div>
-            <p>Translating raw sensor data into clear field decisions and village notices.</p>
-          </div>
-
-          {/* Dedicated Gemini AI Suite Hero Spotlight Banner */}
-          <div className="my-6 p-5 rounded-2xl bg-gradient-to-r from-stone-900 via-stone-900/95 to-amber-950/40 border border-amber-500/30 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="space-y-1.5 max-w-2xl">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-mono text-[10px] font-bold border border-amber-500/30 flex items-center gap-1">
-                  <Sparkles size={11} /> AI FIELD ASSISTANT
-                </span>
-                <span className="text-xs text-stone-400 font-mono">
-                  POWERED BY GEMINI 3.5 FLASH & PRO
-                </span>
-              </div>
-              <h3 className="text-lg font-bold text-stone-100">
-                Geotechnical Assistant & Live Meteorological Grounding
-              </h3>
-              <p className="text-xs text-stone-300 leading-relaxed">
-                Ask questions about current slope stability, check mountain pass road status, or pull local IMD weather reports in plain language.
-              </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full md:w-auto">
-              <Link
-                href="/ai-chatbot"
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+            {/* Tactical Expansion Actions in Right HUD Footer */}
+            <div className="p-3 space-y-1.5 border-t border-white/10 bg-black/40 shrink-0">
+              <button
+                type="button"
+                onClick={() => setMeteorologyModalOpen(true)}
+                className="w-full py-1.5 px-2.5 rounded-none bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 text-[11px] font-mono font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
               >
-                <Bot size={15} />
-                <span>OPEN AI ASSISTANT</span>
-                <ArrowRight size={14} />
-              </Link>
-            </div>
-          </div>
+                <span>🌦️ EXPAND LIVE RADAR & FORECAST</span>
+                <ArrowUpRight size={12} />
+              </button>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 xl:gap-6 items-start">
-                {/* AI Risk Intelligence */}
-                <div className={`ai-risk-card panel md:col-span-2 lg:col-span-12 xl:col-span-8 min-h-[380px] relative ${aiAnalysisMutation.isPending ? "is-synthesizing" : ""}`}>
+              <button
+                type="button"
+                onClick={() => setSlopeModalOpen(true)}
+                className="w-full py-1.5 px-2.5 rounded-none bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[11px] font-mono font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <span>⚖️ MOHR-COULOMB SLOPE SIMULATOR</span>
+                <ArrowUpRight size={12} />
+              </button>
+            </div>
+          </aside>
+        )}
+
+        {/* Floating Bottom Center HUD Dock */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 pointer-events-auto">
+          <div className="flex items-center gap-2 bg-[#11171D]/92 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-none shadow-2xl text-xs font-mono">
+            <span className="text-stone-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-none bg-emerald-400" />
+              <b>{zones.length}</b> SITES
+            </span>
+
+            <div className="h-3 w-px bg-white/10" />
+
+            <span className="text-red-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-none bg-red-500 animate-pulse" />
+              <b>{zones.filter(z => z.tier === "CRITICAL").length}</b> CRITICAL
+            </span>
+
+            <div className="h-3 w-px bg-white/10" />
+
+            <span className="text-stone-400 hidden sm:inline-flex items-center gap-1">
+              AVG TILT: <b className="text-sky-300">{(zones.reduce((s, z) => s + z.tilt, 0) / zones.length).toFixed(3)}°/hr</b>
+            </span>
+
+            <div className="h-3 w-px bg-white/10 hidden sm:block" />
+
+            <button
+              type="button"
+              onClick={() => setBottomDrawerOpen((prev) => !prev)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold transition-all"
+              title="Expand Telemetry Breakdown, History Logs & Citizen Field Reports"
+            >
+              <BarChart3 size={12} className="text-amber-400" />
+              <span>{bottomDrawerOpen ? "HIDE TELEMETRY & LOGS ▼" : "📊 TELEMETRY & FIELD REPORTS ▲"}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Floating Bottom Slide-Up Drawer: Analytics, Sensor Log & Field Reports */}
+        {bottomDrawerOpen && (
+          <div className="absolute bottom-0 left-0 right-0 max-h-[72vh] z-[1100] flex flex-col bg-[#0c1015]/96 backdrop-blur-2xl border-t-2 border-amber-500/50 shadow-[0_-16px_50px_rgba(0,0,0,0.9)] overflow-hidden pointer-events-auto animate-in slide-in-from-bottom duration-300">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10 bg-white/[0.02] shrink-0">
+              <div className="flex items-center gap-2">
+                <BarChart3 size={15} className="text-amber-400" />
+                <span className="text-xs font-mono font-bold text-stone-100">
+                  ANALYTICS, SENSOR TELEMETRY & FIELD OPERATIONS
+                </span>
+                <span className="text-[10px] font-mono text-stone-400 hidden md:inline">
+                  · Deterministic 4-Factor Breakdown · 16-Readings Trend · Pass Status · Citizen DB Reports
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBottomDrawerOpen(false)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-none bg-white/[0.05] hover:bg-white/[0.1] text-stone-300 hover:text-white border border-white/10 text-xs font-mono transition-colors"
+                title="Minimize Dock"
+              >
+                <span>▼ MINIMIZE DOCK</span>
+              </button>
+            </div>
+
+            {/* Drawer Scrollable Content */}
+            <div className="p-4 overflow-y-auto space-y-6 scrollbar-thin">
+              {/* Lower Telemetry & Explainability Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-start">
+                <div className="chart-panel panel md:col-span-2 lg:col-span-5">
                   <div className="panel-title">
-                    <span><Activity size={14} /> {t("AI RISK INTELLIGENCE")}</span>
+                    <span>{t("RISK SCORE — LAST 16 READINGS")}</span>
+                    <span className="trend"><ArrowUpRight size={14} /> TREND {delta(prototypeRiskScore, zone.history[zone.history.length - 2])}</span>
+                  </div>
+                  <TrendChart values={zone.history} tier={prototypeTier} />
+                  <div className="chart-stats">
+                    <span>CURRENT <b>{prototypeRiskScore}</b></span>
+                    <span>PREVIOUS <b>{zone.history[zone.history.length - 2]}</b></span>
+                    <span>RECENT HIGH <b>{Math.max(...zone.history)}</b></span>
+                    <span>STATUS <b style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</b></span>
+                  </div>
+                </div>
+
+                <div className="explain panel md:col-span-1 lg:col-span-4">
+                  <div className="panel-title">
+                    <span>{t("WHY THIS SCORE?")}</span>
+                    <span className="mono">{t("DETERMINISTIC 4-FACTOR BREAKDOWN")}</span>
+                  </div>
+                  <p>Risk is <b style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</b> calculated via auditable formula without black-box AI:</p>
+                  <div className="contributions">
+                    {[
+                      ["RAINFALL INTENSITY", riskInputs.rainfallScore, "#84A6A0"],
+                      ["TERRAIN / TILT ACCELERATION", riskInputs.terrainScore, "#C28A70"],
+                      ["GEOLOGICAL BASELINE", riskInputs.historicalLandslideScore, "#D6A24E"],
+                      ["REGIONAL EVENT CONTEXT", riskInputs.recentEventScore, "#C24B3F"]
+                    ].map(([label, val, color]) => (
+                      <div className="contrib" key={label as string}>
+                        <span>{t(label as string)}<b>{Math.round((val as number) / 4)} / 100</b></span>
+                        <i><em style={{ width: `${val as number}%`, background: color as string }} /></i>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="history panel md:col-span-1 lg:col-span-3">
+                  <div className="panel-title">
+                    <span>{t("SENSOR HISTORY LOG")}</span>
+                    <span className="mono">{t("LAST 5 READINGS")}</span>
+                  </div>
+                  <div className="history-head">
+                    <span>TIME</span><span>{t("RAINFALL")}</span><span>{t("SOIL MOISTURE")}</span><span>{t("SLOPE TILT")}</span>
+                  </div>
+                  {zone.history.slice(-5).reverse().map((v, i) => (
+                    <div className="history-row" key={`${v}-${i}`}>
+                      <span>{i === 0 ? lastUpdate : `${lastUpdate.slice(0, 5)}:${String(Math.max(0, 38 - i * 2)).padStart(2, "0")}`}</span>
+                      <span>{(zone.rainfall - (4 - i) * .7).toFixed(1)}</span>
+                      <span>{(zone.soil - (4 - i) * 1.1).toFixed(1)}%</span>
+                      <span>{(zone.tilt - (4 - i) * .002).toFixed(3)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Field Operations & Citizen Reporting Suite */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-start">
+                {/* Executive Situation Summary */}
+                <div className="impact-card panel md:col-span-1 lg:col-span-6 xl:col-span-4">
+                  <div className="panel-title">
+                    <span><Users size={14} /> {t("EXECUTIVE SITUATION SUMMARY")}</span>
+                    <span className="mono">{responsePriority}</span>
+                  </div>
+                  <div className="impact-metrics">
+                    <span><b style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</b><small>SELECTED RISK</small></span>
+                    <span><b>{exposure.toLocaleString()}</b><small>POPULATION EXPOSURE*</small></span>
+                    <span><b>{roadRows.filter(r => r.status === "AT RISK" || r.status === "BLOCKED").length}</b><small>ROADS TO REVIEW</small></span>
+                    <span><b>{responsePriority}</b><small>RESPONSE LEVEL</small></span>
+                  </div>
+                  <div className="impact-list">
+                    <span><MapPinned size={13} /> VILLAGES POTENTIALLY AFFECTED <b>{prototypeRiskScore >= 76 ? 3 : prototypeRiskScore >= 51 ? 2 : 1}</b></span>
+                    <span><Hospital size={13} /> EMERGENCY ACCESS <b>{prototypeRiskScore >= 76 ? "LIMITED" : "AVAILABLE"}</b></span>
+                    <span><Route size={13} /> ALTERNATIVE ROUTE <b>{prototypeRiskScore >= 76 ? "REVIEW REQUIRED" : "AVAILABLE"}</b></span>
+                  </div>
+                  <small className="impact-disclaimer">* Prototype exposure estimate for demonstration only. Validate with approved population datasets.</small>
+                </div>
+
+                {/* Road Corridor Connectivity */}
+                <div className="road-card panel md:col-span-1 lg:col-span-6 xl:col-span-4">
+                  <div className="panel-title">
+                    <span><Route size={14} /> {t("MOUNTAIN PASS & ROAD STATUS")}</span>
+                    <span className="mono">FIELD ESTIMATE</span>
+                  </div>
+                  <p className="module-intro">Estimated corridor status based on slope saturation and distance.</p>
+                  {roadRows.map(row => (
+                    <div className="road-row" key={row.name}>
+                      <div>
+                        <b>{row.name}</b>
+                        <small>{row.distance} from selected risk surface · {row.villages} village(s)</small>
+                      </div>
+                      <span className={`road-status road-${row.status.toLowerCase().replace(" ", "-")}`}>{row.status}</span>
+                      <em>CONFIDENCE {row.confidence}</em>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Weather-Linked Forecast */}
+                <div className="forecast-card panel md:col-span-1 lg:col-span-6 xl:col-span-4">
+                  <div className="panel-title">
+                    <span><CloudRain size={14} /> {t("WEATHER-LINKED RISK FORECAST")}</span>
+                    <span className="mono">PROTOTYPE</span>
+                  </div>
+                  <div className="forecast-list">
+                    {forecast.map(item => (
+                      <div className="forecast-row" key={item.time}>
+                        <span>{item.time}</span>
+                        <b>{item.weather}</b>
+                        <strong style={{ color: item.score >= 76 ? "#C24B3F" : item.score >= 51 ? "#D6A24E" : "#6FA377" }}>{classify(item.score)}</strong>
+                        <em>{item.score}/100</em>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Citizen & Field Reporting */}
+                <div className="report-card panel md:col-span-1 lg:col-span-6 xl:col-span-6">
+                  <div className="panel-title">
+                    <span className="flex items-center gap-1.5"><Upload size={14} /> {t("CITIZEN / FIELD REPORTING")}</span>
                     <span className="mono">
-                      {aiAnalysisMutation.isPending ? (
-                        <span className="ai-pulse-chip flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                          <span className="pulse-indicator" /> SYNTHESIZING TELEMETRY…
-                        </span>
-                      ) : (
-                        displayAnalysis.provider
-                      )}
+                      {activeReportsQuery.data?.length
+                        ? `${activeReportsQuery.data.length} ACTIVE IN DATABASE`
+                        : "ACTIVE DB READY"}
                     </span>
                   </div>
 
-                  {aiAnalysisMutation.isPending ? (
-                    <AiRiskIntelligenceSkeleton />
-                  ) : (
-                    <>
-                      <div className="ai-risk-head">
-                        <div>
-                          <span className="ai-kicker">EXPLAINABLE AI INTERPRETATION / {notificationLanguages.find(item => item.code === language)?.nativeLabel}</span>
-                          <h3>{displayAnalysis.assessment}</h3>
-                        </div>
-                        <button className="button primary" onClick={runAiAnalysis} disabled={aiAnalysisMutation.isPending}>
-                          ANALYZE CURRENT STATE
+                  {!isAuthenticated ? (
+                    <div className="p-4 border border-amber-500/30 bg-amber-500/5 flex flex-col items-center text-center gap-3">
+                      <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                        <Lock size={18} />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-stone-200">AUTHENTICATION REQUIRED</h4>
+                        <p className="text-xs text-stone-400 max-w-sm leading-relaxed">
+                          To submit official landslide observations, slope crack sightings, or road blockages into the database, users must sign in with their Google account.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="button primary flex items-center gap-2 mt-1 font-bold text-xs"
+                        onClick={() => setGoogleAuthModalOpen(true)}
+                      >
+                        <LogIn size={13} />
+                        <span>SIGN IN WITH GOOGLE TO REPORT</span>
+                      </button>
+                    </div>
+                  ) : reportSaved ? (
+                    <div className="report-success">
+                      <ShieldCheck size={20} className="text-emerald-400" />
+                      <div>
+                        <b>REPORT RECORDED IN DATABASE</b>
+                        <small>
+                          Stored in temporary active database table (24h operational window). Emergency coordinators and response teams can view this active record.
+                        </small>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button className="button secondary" onClick={() => setReportSaved(false)}>
+                          FILE ANOTHER REPORT
                         </button>
                       </div>
-
-                      <div className="ai-meta">
-                        <span>RISK LEVEL <b style={{ color: prototypeRiskColor }}>{displayAnalysis.riskLevel}</b></span>
-                        <span>CONFIDENCE <b>{displayAnalysis.confidence}</b></span>
-                        <span>DATA CONFIDENCE <b>{validationResult.overallConfidence}%</b></span>
-                        <span>TIME <b>{formatTimestamp(displayAnalysis.generatedAt)}</b></span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-stone-800 text-[11px] font-mono">
+                        <span className="text-stone-400">
+                          REPORTER: <b className="text-emerald-400">{user?.name || user?.email}</b>
+                        </span>
+                        <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 border border-amber-500/20 text-[10px]">
+                          VERIFIED ACCOUNT
+                        </span>
                       </div>
 
-                      <div className="ai-columns">
-                        <div>
-                          <span className="ai-label">WHY THIS LEVEL</span>
-                          <p>{displayAnalysis.why}</p>
-                          <span className="ai-label">CONTRIBUTING FACTORS</span>
-                          <ul>
-                            {displayAnalysis.factors.map((factor, index) => (
-                              <li key={`${factor}-${index}`}>{factor}</li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div>
-                          <span className="ai-label">RECOMMENDED SAFETY ACTIONS</span>
-                          <ul>
-                            {displayAnalysis.actions.map((action, index) => (
-                              <li key={`${action}-${index}`}>{action}</li>
-                            ))}
-                          </ul>
-                          <div className="ai-warning">
-                            <ShieldAlert size={14} />
-                            <span>{displayAnalysis.warning}</span>
-                          </div>
-                        </div>
+                      <p className="module-intro">Capture slope cracks, movement, landslide activity, or blocked roads directly to the central database.</p>
+                      <div className="report-fields">
+                        <select value={reportCategory} onChange={e => setReportCategory(e.target.value)} aria-label="Incident category">
+                          <option>SLOPE CRACK</option>
+                          <option>LANDSLIDE ACTIVITY</option>
+                          <option>BLOCKED ROAD</option>
+                          <option>FLOODING</option>
+                          <option>INFRASTRUCTURE DAMAGE</option>
+                        </select>
+                        <select value={reportSeverity} onChange={e => setReportSeverity(e.target.value)} aria-label="Incident severity">
+                          <option>LOW</option>
+                          <option>MEDIUM</option>
+                          <option>HIGH</option>
+                          <option>CRITICAL</option>
+                        </select>
+                      </div>
+                      <div className="report-media">
+                        <label className="file-upload-label">
+                          <Upload size={13} />
+                          <span>{reportFile ? reportFile.name : "ATTACH EVIDENCE"}</span>
+                          <input type="file" accept="image/*,video/*" onChange={e => setReportFile(e.target.files?.[0] ?? null)} />
+                        </label>
+                        <button className="button secondary" type="button" onClick={requestReportLocation}><MapPin size={13} /> {reportLocation ? "LOCATION ATTACHED" : "USE MY LOCATION"}</button>
+                      </div>
+                      <textarea
+                        value={reportDescription}
+                        onChange={e => setReportDescription(e.target.value)}
+                        placeholder="Describe observed slope conditions or blockage in detail..."
+                        rows={3}
+                      />
+                      <div className="report-actions flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-800">
+                        <span className="text-[11px] text-stone-400">
+                          LOCATION: {(reportLocation ?? analysisPoint).latitude.toFixed(3)}, {(reportLocation ?? analysisPoint).longitude.toFixed(3)}{reportFile ? ` · FILE: ${reportFile.name}` : ""}
+                        </span>
+                        <button
+                          className="button primary flex items-center gap-1.5"
+                          onClick={submitReport}
+                          disabled={createReportMutation.isPending || !reportDescription.trim()}
+                        >
+                          {createReportMutation.isPending ? "SAVING TO DB…" : "SUBMIT TO DATABASE"}
+                          <Send size={14} />
+                        </button>
                       </div>
                     </>
                   )}
+
+                  {/* Live Active Reports in Database */}
+                  {activeReportsQuery.data && activeReportsQuery.data.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-stone-800 space-y-2">
+                      <div className="flex items-center justify-between text-[10px] font-mono text-stone-400">
+                        <span>ACTIVE INCIDENTS IN DATABASE ({activeReportsQuery.data.length})</span>
+                        <span className="text-amber-400">TEMPORARY ACTIVE (24H)</span>
+                      </div>
+                      <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                        {activeReportsQuery.data.slice(0, 5).map((rep) => (
+                          <div
+                            key={rep.reportId}
+                            className="p-2 bg-stone-900/90 border border-stone-800 flex items-start justify-between gap-2 text-xs"
+                          >
+                            <div>
+                              <div className="flex items-center gap-1.5 font-mono">
+                                <span
+                                  className={`px-1.5 py-0.2 text-[9px] font-bold ${
+                                    rep.severity === "CRITICAL"
+                                      ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                                      : rep.severity === "HIGH"
+                                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                      : "bg-stone-800 text-stone-300 border border-stone-700"
+                                  }`}
+                                >
+                                  {rep.severity}
+                                </span>
+                                <b className="text-stone-200 text-[11px]">{rep.category}</b>
+                              </div>
+                              <p className="text-stone-400 text-[11px] line-clamp-1 mt-0.5">{rep.description}</p>
+                              <small className="text-stone-500 font-mono text-[9.5px]">
+                                BY {rep.reporterName} · {rep.latitude.toFixed(2)}, {rep.longitude.toFixed(2)}
+                              </small>
+                            </div>
+                            <span className="shrink-0 text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20">
+                              ACTIVE
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Contextual AI Assistant with 4 Preset Roadmap Questions */}
-                <div className="copilot-card panel md:col-span-2 lg:col-span-12 xl:col-span-4 min-h-[380px] flex flex-col">
+                {/* System Health & Multilingual Switcher */}
+                <div className="health-card panel md:col-span-2 lg:col-span-6 xl:col-span-6">
                   <div className="panel-title">
-                    <span className="flex items-center gap-1.5"><Sparkles size={14} className="text-amber-400" /> {t("AI COMPANION")}</span>
-                    <span className="mono">{assistantMutation.isPending ? "THINKING…" : "READY"}</span>
+                    <span><Wifi size={14} /> SYSTEM HEALTH & CONFIGURATION</span>
+                    <button className="health-toggle" onClick={cycleNetwork} aria-label="Cycle network status">
+                      {networkState === "ONLINE" ? <Wifi size={13} /> : <WifiOff size={13} />} {networkState}
+                    </button>
                   </div>
-                  <div className="assistant-box flex-1 flex flex-col">
-                    <div className="preset-question-pills">
-                      <button onClick={() => askAssistant("What is the current risk level in my area?")}>
-                        📍 What is current risk level?
-                      </button>
-                      <button onClick={() => askAssistant("Why did the landslide risk increase?")}>
-                        📈 Why did risk increase?
-                      </button>
-                      <button onClick={() => askAssistant("What should I do after receiving a warning?")}>
-                        🛡️ What should I do after warning?
-                      </button>
-                      <button onClick={() => askAssistant("Explain the weather and risk data shown on the dashboard.")}>
-                        📊 Explain weather & risk data
-                      </button>
-                    </div>
-
-                    <div className="assistant-input">
-                      <input
-                        type="text"
-                        value={assistantQuery}
-                        onChange={e => setAssistantQuery(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && askAssistant()}
-                        placeholder="Ask about slope telemetry, road corridors, or safety precautions..."
-                        aria-label="Assistant query"
-                      />
-                      <button onClick={() => askAssistant()} disabled={assistantMutation.isPending}>
-                        {assistantMutation.isPending ? (
-                          <span className="w-3.5 h-3.5 rounded-full border-2 border-amber-400/40 border-t-amber-400 animate-spin" />
-                        ) : (
-                          <Send size={14} />
-                        )}
-                      </button>
-                    </div>
-
-                    {assistantMutation.isPending && (
-                      <div className="my-2">
-                        <AiAssistantSkeleton />
-                      </div>
-                    )}
-
-                    {assistantMutation.data && !assistantMutation.isPending && (
-                      <div className="assistant-answer">
-                        <p>{assistantMutation.data.answer}</p>
-                        <small>AI-GENERATED EXPLANATION BASED ON VALIDATED TELEMETRY · {formatTimestamp(assistantMutation.data.generatedAt)}</small>
-                      </div>
-                    )}
+                  <div className="health-list">
+                    <span><i /> DETERMINISTIC RISK ENGINE <b>OPERATIONAL</b></span>
+                    <span><i /> ANOMALY VALIDATION <b>ACTIVE (0 QUARANTINED)</b></span>
+                    <span><i /> NASA EONET v3 FEED <b>{liveAvailable ? "CONNECTED" : "FALLBACK"}</b></span>
+                    <span><i className={networkState === "OFFLINE MODE" ? "offline-dot" : ""} /> OFFLINE REPORT CACHE <b>READY</b></span>
                   </div>
-                </div>
-              </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 xl:gap-6 items-start mt-6">
-
-
-            {/* Executive Situation Summary */}
-            <div className="impact-card panel md:col-span-1 lg:col-span-6 xl:col-span-4">
-              <div className="panel-title">
-                <span><Users size={14} /> {t("EXECUTIVE SITUATION SUMMARY")}</span>
-                <span className="mono">{responsePriority}</span>
-              </div>
-              <div className="impact-metrics">
-                <span><b style={{ color: prototypeRiskColor }}>{prototypeRiskLevel}</b><small>SELECTED RISK</small></span>
-                <span><b>{exposure.toLocaleString()}</b><small>POPULATION EXPOSURE*</small></span>
-                <span><b>{roadRows.filter(r => r.status === "AT RISK" || r.status === "BLOCKED").length}</b><small>ROADS TO REVIEW</small></span>
-                <span><b>{responsePriority}</b><small>RESPONSE LEVEL</small></span>
-              </div>
-              <div className="impact-list">
-                <span><MapPinned size={13} /> VILLAGES POTENTIALLY AFFECTED <b>{prototypeRiskScore >= 76 ? 3 : prototypeRiskScore >= 51 ? 2 : 1}</b></span>
-                <span><Hospital size={13} /> EMERGENCY ACCESS <b>{prototypeRiskScore >= 76 ? "LIMITED" : "AVAILABLE"}</b></span>
-                <span><Route size={13} /> ALTERNATIVE ROUTE <b>{prototypeRiskScore >= 76 ? "REVIEW REQUIRED" : "AVAILABLE"}</b></span>
-              </div>
-              <small className="impact-disclaimer">* Prototype exposure estimate for demonstration only. Validate with approved population datasets.</small>
-            </div>
-
-            {/* Road Corridor Connectivity */}
-            <div className="road-card panel md:col-span-1 lg:col-span-6 xl:col-span-4">
-              <div className="panel-title">
-                <span><Route size={14} /> {t("MOUNTAIN PASS & ROAD STATUS")}</span>
-                <span className="mono">FIELD ESTIMATE</span>
-              </div>
-              <p className="module-intro">Estimated corridor status based on slope saturation and distance.</p>
-              {roadRows.map(row => (
-                <div className="road-row" key={row.name}>
-                  <div>
-                    <b>{row.name}</b>
-                    <small>{row.distance} from selected risk surface · {row.villages} village(s)</small>
-                  </div>
-                  <span className={`road-status road-${row.status.toLowerCase().replace(" ", "-")}`}>{row.status}</span>
-                  <em>CONFIDENCE {row.confidence}</em>
-                </div>
-              ))}
-            </div>
-
-            {/* Weather-Linked Forecast */}
-            <div className="forecast-card panel md:col-span-1 lg:col-span-6 xl:col-span-4">
-              <div className="panel-title">
-                <span><CloudRain size={14} /> {t("WEATHER-LINKED RISK FORECAST")}</span>
-                <span className="mono">PROTOTYPE</span>
-              </div>
-              <div className="forecast-list">
-                {forecast.map(item => (
-                  <div className="forecast-row" key={item.time}>
-                    <span>{item.time}</span>
-                    <b>{item.weather}</b>
-                    <strong style={{ color: item.score >= 76 ? "#C24B3F" : item.score >= 51 ? "#D6A24E" : "#6FA377" }}>{classify(item.score)}</strong>
-                    <em>{item.score}/100</em>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Citizen & Field Reporting */}
-            <div className="report-card panel md:col-span-1 lg:col-span-6 xl:col-span-6">
-              <div className="panel-title">
-                <span><Upload size={14} /> {t("CITIZEN / FIELD REPORTING")}</span>
-                <span className="mono">{reportSaved ? "QUEUED" : "READY"}</span>
-              </div>
-              {reportSaved ? (
-                <div className="report-success">
-                  <ShieldCheck size={20} />
-                  <div>
-                    <b>REPORT QUEUED FOR HUMAN VERIFICATION</b>
-                    <small>Evidence stored locally in browser storage.</small>
-                  </div>
-                  <button className="button secondary" onClick={() => setReportSaved(false)}>NEW REPORT</button>
-                </div>
-              ) : (
-                <>
-                  <p className="module-intro">Capture slope cracks, movement, landslide activity, or blocked roads.</p>
-                  <div className="report-fields">
-                    <select value={reportCategory} onChange={e => setReportCategory(e.target.value)} aria-label="Incident category">
-                      <option>SLOPE CRACK</option>
-                      <option>LANDSLIDE ACTIVITY</option>
-                      <option>BLOCKED ROAD</option>
-                      <option>FLOODING</option>
-                      <option>INFRASTRUCTURE DAMAGE</option>
-                    </select>
-                    <select value={reportSeverity} onChange={e => setReportSeverity(e.target.value)} aria-label="Incident severity">
-                      <option>LOW</option>
-                      <option>MEDIUM</option>
-                      <option>HIGH</option>
-                      <option>CRITICAL</option>
-                    </select>
-                  </div>
-                  <div className="report-media">
-                    <label className="file-upload-label">
-                      <Upload size={13} />
-                      <span>{reportFile ? reportFile.name : "ATTACH EVIDENCE"}</span>
-                      <input type="file" accept="image/*,video/*" onChange={e => setReportFile(e.target.files?.[0] ?? null)} />
+                  <div className="health-controls">
+                    <label>
+                      NOTIFICATION LANGUAGE
+                      <select value={language} onChange={e => changeLanguage(e.target.value)}>
+                        {notificationLanguages.map(item => (
+                          <option value={item.code} key={item.code}>{item.label} — {item.nativeLabel}</option>
+                        ))}
+                      </select>
                     </label>
-                    <button className="button secondary" type="button" onClick={requestReportLocation}><MapPin size={13} /> {reportLocation ? "LOCATION ATTACHED" : "USE MY LOCATION"}</button>
+                    <span>LAST UPDATE <b>{lastUpdate}</b></span>
                   </div>
-                  <textarea value={reportDescription} onChange={e => setReportDescription(e.target.value)} placeholder="Describe observed slope conditions..." rows={3} />
-                  <div className="report-actions">
-                    <span>LOCATION: {(reportLocation ?? analysisPoint).latitude.toFixed(3)}, {(reportLocation ?? analysisPoint).longitude.toFixed(3)}{reportFile ? ` · FILE: ${reportFile.name}` : ""}</span>
-                    <button className="button primary" onClick={submitReport}>QUEUE REPORT <Send size={14} /></button>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* System Health & Multilingual Switcher */}
-            <div className="health-card panel md:col-span-2 lg:col-span-6 xl:col-span-6">
-              <div className="panel-title">
-                <span><Wifi size={14} /> SYSTEM HEALTH & CONFIGURATION</span>
-                <button className="health-toggle" onClick={cycleNetwork} aria-label="Cycle network status">
-                  {networkState === "ONLINE" ? <Wifi size={13} /> : <WifiOff size={13} />} {networkState}
-                </button>
-              </div>
-              <div className="health-list">
-                <span><i /> DETERMINISTIC RISK ENGINE <b>OPERATIONAL</b></span>
-                <span><i /> ANOMALY VALIDATION <b>ACTIVE (0 QUARANTINED)</b></span>
-                <span><i /> NASA EONET v3 FEED <b>{liveAvailable ? "CONNECTED" : "FALLBACK"}</b></span>
-                <span><i className={networkState === "OFFLINE MODE" ? "offline-dot" : ""} /> OFFLINE REPORT CACHE <b>READY</b></span>
-              </div>
-              <div className="health-controls">
-                <label>
-                  NOTIFICATION LANGUAGE
-                  <select value={language} onChange={e => changeLanguage(e.target.value)}>
-                    {notificationLanguages.map(item => (
-                      <option value={item.code} key={item.code}>{item.label} — {item.nativeLabel}</option>
-                    ))}
-                  </select>
-                </label>
-                <span>LAST UPDATE <b>{lastUpdate}</b></span>
+                </div>
               </div>
             </div>
           </div>
-        </section>
+        )}
       </main>
 
       {/* ESP32 Hardware Health Modal */}
@@ -1979,7 +1899,7 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
                   <select
                     value={language}
                     onChange={e => changeLanguage(e.target.value)}
-                    className="w-full bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-xs font-mono text-stone-100 focus:outline-none focus:border-amber-400"
+                    className="w-full bg-stone-950 border border-stone-700 rounded-none px-3 py-2 text-xs font-mono text-stone-100 focus:outline-none focus:border-amber-400"
                   >
                     {notificationLanguages.map(item => (
                       <option value={item.code} key={item.code}>
@@ -1989,7 +1909,7 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
                   </select>
                 </div>
 
-                <div className="notification-preview-box rounded-lg p-3 bg-stone-950 border border-stone-800 text-xs">
+                <div className="notification-preview-box rounded-none p-3 bg-stone-950 border border-stone-800 text-xs">
                   <span className="mono text-amber-400 font-bold block mb-1 text-[10px]">
                     SIMULATED NOTIFICATION PAYLOAD ({language.toUpperCase()}):
                   </span>
@@ -1998,7 +1918,7 @@ Disclaimer: Landsora is an IoT early warning and risk decision-support platform.
                 </div>
 
                 {operatorDeliveryLogs ? (
-                  <div className="delivery-log-box rounded-lg p-3 bg-emerald-950/40 border border-emerald-500/40">
+                  <div className="delivery-log-box rounded-none p-3 bg-emerald-950/40 border border-emerald-500/40">
                     <h5 className="text-emerald-400 font-bold flex items-center gap-1.5 text-xs">
                       <CheckCircle2 size={14} /> SIMULATED ALERT DISPATCHED
                     </h5>

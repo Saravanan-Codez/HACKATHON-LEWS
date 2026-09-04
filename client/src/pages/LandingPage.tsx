@@ -11,6 +11,7 @@ import {
   FileCheck2,
   Gauge,
   Globe2,
+  Layers3,
   Radio,
   Route,
   Shield,
@@ -152,6 +153,7 @@ export default function LandingPage() {
         <nav className="marketing-nav-links" aria-label="Main Navigation">
           <button onClick={() => scrollTo("problem")} className="nav-link-btn">Problem</button>
           <button onClick={() => scrollTo("solution")} className="nav-link-btn">Solution</button>
+          <button onClick={() => scrollTo("ground-truth")} className="nav-link-btn">Ground Truth</button>
           <button onClick={() => scrollTo("features")} className="nav-link-btn">Capabilities</button>
           <button onClick={() => scrollTo("how-it-works")} className="nav-link-btn">Architecture</button>
           <button onClick={() => scrollTo("faq")} className="nav-link-btn">FAQ</button>
@@ -173,7 +175,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <Link href="/ai-chatbot" className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-amber-300 hover:text-amber-200 font-semibold border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-all">
+          <Link href="/ai-chatbot" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-amber-300 hover:text-amber-200 font-semibold border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-all">
             <Sparkles size={13} className="text-amber-400" />
             <span>AI Companion</span>
           </Link>
@@ -193,6 +195,16 @@ export default function LandingPage() {
         <section className="marketing-hero">
           <div className="hero-background-art" />
           <div className="hero-content-wrapper">
+            <div className="hero-hud-strip">
+              <span className="hud-live-tag">LIVE TELEMETRY STREAM</span>
+              <span>/</span>
+              <span>STATION KDG-03</span>
+              <span>/</span>
+              <span>13° 18′ 55″ N, 75° 48′ 12″ E</span>
+              <span>/</span>
+              <span>WESTERN GHATS</span>
+            </div>
+
             <div className="hero-eyebrow">
               <span className="hero-rule" />
               <span>{t.eyebrow}</span>
@@ -450,12 +462,131 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 7. FEATURES */}
+        {/* 7. GEOTECHNICAL GROUND TRUTH & PHYSICAL SLOPE SENSING */}
+        <section id="ground-truth" className="marketing-section geotech-section">
+          <div className="section-container">
+            <div className="section-kicker">
+              <span className="kicker-rule" />
+              <span>GROUND TRUTH // 04</span>
+            </div>
+
+            <div className="geotech-header-flex">
+              <div>
+                <h2 className="section-title">
+                  Physical slope telemetry,<br />
+                  <em>not remote guesswork.</em>
+                </h2>
+                <p className="section-subtitle">
+                  Satellite radar and regional rain models tell you an entire mountain range is wet. Landsora connects directly to physical borehole MEMS tilt sensors, pore-pressure piezometers, and soil capacitance probes anchored deep into bedrock.
+                </p>
+              </div>
+              <div className="geotech-badge-box">
+                <span className="mono">STATION HARNESS // MPU6050</span>
+                <strong>WESTERN GHATS CORRIDOR</strong>
+                <small>Continuous 10Hz MEMS Inclinometer & Moisture Array</small>
+              </div>
+            </div>
+
+            <div className="geotech-showcase-grid">
+              <div className="geotech-image-frame">
+                <img
+                  src="/assets/lews-slope-detail.png"
+                  alt="Monitored hillside cut slope showing in-situ borehole sensor casing and stratified soil layers"
+                  className="geotech-main-image"
+                />
+                <div className="geotech-image-overlay">
+                  <div className="image-hud-tag tag-probe">
+                    <span className="hud-indicator" />
+                    <div className="hud-content">
+                      <b>BOREHOLE CASING</b>
+                      <span>Depth: 1.8m · In-situ Tilt & Moisture</span>
+                    </div>
+                  </div>
+                  <div className="image-hud-tag tag-shear">
+                    <span className="hud-indicator" />
+                    <div className="hud-content">
+                      <b>SLIP PLANE STRATIGRAPHY</b>
+                      <span>Residual Basalt Saprolite / Clay Horizon</span>
+                    </div>
+                  </div>
+                  <div className="image-caption-strip">
+                    <span>FIELD PROBE // KDG-03 WESTERN GHATS</span>
+                    <span>SOIL MOISTURE CAPACITANCE + MEMS TILT</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="geotech-details-col">
+                <div className="geotech-spec-card">
+                  <div className="spec-head">
+                    <Layers3 size={18} className="text-amber-400" />
+                    <h4>Slip Plane Mechanics</h4>
+                  </div>
+                  <p>
+                    Rainfall accumulates in upper colluvial soil until pore-water pressure exceeds shear resistance along the impermeable saprolite boundary. Landsora detects moisture saturation at depth hours before surface cracks manifest.
+                  </p>
+                  <div className="spec-stat-row">
+                    <div>
+                      <small>PLASTICITY LIMIT</small>
+                      <b>78% Saturation</b>
+                    </div>
+                    <div>
+                      <small>TILT THRESHOLD</small>
+                      <b>&gt; 0.08° / hr</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="geotech-spec-card">
+                  <div className="spec-head">
+                    <Radio size={18} className="text-teal-400" />
+                    <h4>Local ESP32 & LoRa Field Transmission</h4>
+                  </div>
+                  <p>
+                    Field nodes don't rely on fragile commercial cell towers that drop during storms. Ingested via direct low-power telemetry, buffered locally in persistent NVRAM, and streamed with sub-2.5s latency to emergency operations centers.
+                  </p>
+                  <div className="spec-stat-row">
+                    <div>
+                      <small>INGESTION PROTOCOL</small>
+                      <b>HTTP / MQTT Telemetry</b>
+                    </div>
+                    <div>
+                      <small>OFFLINE BUFFER</small>
+                      <b>72hr On-Chip Flash</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="geotech-spec-card">
+                  <div className="spec-head">
+                    <ShieldCheck size={18} className="text-emerald-400" />
+                    <h4>Calibrated to Regional Bedrock</h4>
+                  </div>
+                  <p>
+                    Every station profile is calibrated against local geotechnical surveys—accounting for Deccan Trap basalts in Maharashtra, charnockites in Kerala, and metamorphics in Sikkim.
+                  </p>
+                  <div className="spec-stat-row">
+                    <div>
+                      <small>CALIBRATED STATIONS</small>
+                      <b>32 Global Sites</b>
+                    </div>
+                    <div>
+                      <small>DECISION ENGINE</small>
+                      <b>Deterministic Rule-Set</b>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 8. FEATURES */}
         <section id="features" className="marketing-section features-section">
           <div className="section-container">
             <div className="section-kicker">
               <span className="kicker-rule" />
-              <span>CAPABILITIES / 04</span>
+              <span>CAPABILITIES / 05</span>
             </div>
 
             <h2 className="section-title">
@@ -474,10 +605,10 @@ export default function LandingPage() {
                 </p>
               </div>
 
-              <div className="feature-card">
+              <div className="feature-card gis-card">
                 <div className="feature-card-header">
                   <Compass size={22} className="text-emerald-400" />
-                  <span className="feature-tag">TERRAIN MAP</span>
+                  <span className="feature-tag">CONTOUR GIS & TERRAIN</span>
                 </div>
                 <h3>Satellite GIS & Active NASA Tracking</h3>
                 <p>
@@ -498,24 +629,24 @@ export default function LandingPage() {
 
               <div className="feature-card">
                 <div className="feature-card-header">
-                  <Sparkles size={22} className="text-amber-300" />
-                  <span className="feature-tag">FIELD ASSISTANT</span>
+                  <ShieldCheck size={22} className="text-amber-400" />
+                  <span className="feature-tag">EDGE TELEMETRY</span>
                 </div>
-                <h3>Geotechnical Copilot</h3>
+                <h3>Physical Ingest & Hardware Security</h3>
                 <p>
-                  Breaks down anomalies into plain language—explaining whether a jump in risk is caused by surface runoff, deep pore pressure, or sensor drift.
+                  Authenticated ESP32 telemetry ingestion endpoint with token-verified headers, physical sanity bounds checks, and automatic tamper rejection.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* 8. HOW IT WORKS */}
+        {/* 9. HOW IT WORKS */}
         <section id="how-it-works" className="marketing-section how-it-works-section">
           <div className="section-container">
             <div className="section-kicker">
               <span className="kicker-rule" />
-              <span>WORKFLOW / 05</span>
+              <span>WORKFLOW // 06</span>
             </div>
 
             <h2 className="section-title">
@@ -560,12 +691,12 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 9. FAQ SECTION */}
+        {/* 10. FAQ SECTION */}
         <section id="faq" className="marketing-section faq-section">
           <div className="section-container">
             <div className="section-kicker">
               <span className="kicker-rule" />
-              <span>FAQ / 06</span>
+              <span>FAQ // 07</span>
             </div>
 
             <h2 className="section-title">
@@ -620,14 +751,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 10. FINAL CONVERSION CTA */}
+        {/* 11. FINAL CONVERSION CTA */}
         <section className="marketing-section final-cta-section">
           <div className="section-container">
             <div className="final-cta-card">
               <div className="final-cta-copy">
                 <div className="section-kicker">
                   <span className="kicker-rule" />
-                  <span>FIELD CONSOLE / 07</span>
+                  <span>FIELD CONSOLE // 08</span>
                 </div>
                 <h2>
                   Give mountain communities hours of notice,<br />

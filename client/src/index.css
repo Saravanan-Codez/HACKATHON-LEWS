@@ -21,16 +21,19 @@
   --warning: #F59E0B;
   --teal: #06B6D4;
   --cyan: #38BDF8;
-  --radius: 12px;
-  --radius-sm: 8px;
-  --radius-lg: 16px;
+  --radius: 0px;
+  --radius-sm: 0px;
+  --radius-lg: 0px;
   --ease-out: cubic-bezier(.16, 1, .3, 1);
-  --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Devanagari', 'Noto Sans Kannada', 'Noto Sans Telugu', 'Noto Sans Tamil', 'Noto Sans Malayalam', 'Noto Sans Bengali', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Noto Sans Arabic', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans KR', 'Noto Sans Thai', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Kannada', 'Noto Sans Devanagari', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Malayalam', 'Noto Sans Bengali', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Arabic', sans-serif;
+  --font-body: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Kannada', 'Noto Sans Devanagari', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Malayalam', 'Noto Sans Bengali', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Oriya', 'Noto Sans Arabic', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans KR', 'Noto Sans Thai', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Consolas', 'Noto Sans Kannada', 'Noto Sans Devanagari', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Malayalam', 'Noto Sans Bengali', 'Noto Sans Gujarati', 'Noto Sans Gurmukhi', 'Noto Sans Arabic', monospace;
 }
 
-* { box-sizing: border-box; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  border-radius: 0 !important;
+}
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -46,7 +49,7 @@ body {
 
 button, a { font: inherit; }
 button { color: inherit; }
-.app-shell { overflow: hidden; background: var(--bg); }
+.app-shell { overflow-x: clip; background: var(--bg); min-height: 100vh; }
 
 /* Universal Multi-Script Font & Ligature Protection */
 [data-lang]:not([data-lang="EN"]),
@@ -55,8 +58,10 @@ button { color: inherit; }
   text-transform: none !important;
 }
 
+[data-lang]:not([data-lang="EN"]) .mono,
 [data-lang]:not([data-lang="EN"]) .font-mono,
 [data-lang]:not([data-lang="EN"]) .panel-title,
+[data-lang]:not([data-lang="EN"]) .panel-title *,
 [data-lang]:not([data-lang="EN"]) button {
   font-family: var(--font-body) !important;
   font-feature-settings: "liga" 1, "dlig" 1, "clig" 1;
@@ -72,10 +77,10 @@ button { color: inherit; }
   padding: 0 24px;
   position: sticky;
   top: 0;
-  background: rgba(11, 15, 18, 0.92);
+  background: rgba(11, 15, 18, 0.96);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  z-index: 40;
+  z-index: 50;
 }
 
 .dash-header-left {
@@ -115,7 +120,7 @@ button { color: inherit; }
 .dash-header-brand .logo-wrap {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 0;
   background: linear-gradient(135deg, #1C262E, #11171C);
   border: 1px solid var(--line-subtle);
   display: grid;
@@ -404,14 +409,14 @@ button { color: inherit; }
 .gauge-track {
   height: 8px;
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 
 .gauge-fill {
   height: 100%;
   transition: width 500ms var(--ease-out);
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .gauge-number {
@@ -585,7 +590,11 @@ button { color: inherit; }
 
 /* Hero */
 .marketing-hero{position:relative;padding:75px 6vw 90px;border-bottom:1px solid var(--line);isolation:isolate}
-.hero-background-art{position:absolute;inset:0;z-index:-1;background:radial-gradient(circle at 50% 15%,rgba(214,162,78,.08) 0%,transparent 60%),radial-gradient(circle at 20% 40%,rgba(111,163,119,.05) 0%,transparent 50%),linear-gradient(180deg,#12181A 0%,#0E1416 100%);opacity:1}
+.hero-background-art{position:absolute;inset:0;z-index:-1;background-image:linear-gradient(180deg,rgba(11,15,18,.78) 0%,rgba(11,15,18,.89) 55%,#0B0F12 100%),radial-gradient(circle at 50% 25%,rgba(224,159,62,.15) 0%,transparent 65%),url('/assets/lews-hero-topography.png');background-size:cover;background-position:center top;opacity:.92}
+.hero-hud-strip{display:inline-flex;align-items:center;justify-content:center;gap:14px;font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;color:#9FB0A6;margin-bottom:22px;text-transform:uppercase;background:rgba(18,25,28,.88);border:1px solid var(--line);padding:6px 16px;backdrop-filter:blur(8px)}
+.hero-hud-strip span{display:flex;align-items:center;gap:6px}
+.hero-hud-strip .hud-live-tag{color:var(--stable);font-weight:700}
+.hero-hud-strip .hud-live-tag::before{content:"";display:inline-block;width:6px;height:6px;background:var(--stable)}
 .hero-content-wrapper{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;align-items:center;text-align:center}
 .hero-eyebrow{display:inline-flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--ochre);margin-bottom:20px}
 .hero-rule{display:inline-block;width:28px;height:1px;background:var(--ochre)}
@@ -609,7 +618,7 @@ button { color: inherit; }
 .product-preview-wrapper{border:1px solid #364448;background:#151D1F;box-shadow:0 24px 60px rgba(0,0,0,.5);text-align:left}
 .preview-window-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--line);background:#101719}
 .preview-window-dots{display:flex;gap:6px}
-.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.dot{width:9px;height:9px;border-radius:0;display:inline-block}
 .dot-red{background:#C24B3F}
 .dot-amber{background:#D6A24E}
 .dot-green{background:#6FA377}
@@ -627,7 +636,7 @@ button { color: inherit; }
 .preview-slider{width:100%;accent-color:var(--ochre);cursor:pointer}
 .slope-schematic{margin-top:24px;padding:14px;border:1px solid var(--line);background:#101719}
 .schematic-labels{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:8px;letter-spacing:.08em;margin-bottom:8px}
-.schematic-bar{height:6px;background:#243033;border-radius:1px;overflow:hidden}
+.schematic-bar{height:6px;background:#243033;border-radius:0;overflow:hidden}
 .schematic-fill{height:100%;transition:width .3s ease-out}
 .schematic-meta{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:7px;color:#6C7A73;margin-top:6px}
 .preview-score-display{display:flex;gap:16px;align-items:center;padding:12px 0 20px;border-bottom:1px solid var(--line)}
@@ -713,6 +722,40 @@ button { color: inherit; }
 .workflow-card p{font-size:10px;line-height:1.6;color:#8F9C93;margin:0}
 .workflow-arrow-divider{font-family:var(--font-mono);font-size:18px;color:var(--ochre)}
 
+/* Geotechnical Ground Truth Section */
+.geotech-section{background:linear-gradient(180deg,#0E1416 0%,#131B1E 50%,#0F1618 100%);border-bottom:1px solid var(--line);position:relative}
+.geotech-header-flex{display:flex;justify-content:space-between;align-items:flex-start;gap:30px;margin-bottom:35px;flex-wrap:wrap}
+.geotech-header-flex > div:first-child{max-width:700px}
+.geotech-badge-box{background:rgba(18,25,28,.9);border:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:4px;min-width:260px}
+.geotech-badge-box span{font-family:var(--font-mono);font-size:8px;letter-spacing:.12em;color:var(--ochre)}
+.geotech-badge-box strong{font-family:var(--font-mono);font-size:12px;letter-spacing:.06em;color:#F0E9D8}
+.geotech-badge-box small{font-family:var(--font-mono);font-size:8.5px;color:var(--muted)}
+.geotech-showcase-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:stretch}
+@media (max-width:960px){.geotech-showcase-grid{grid-template-columns:1fr}}
+.geotech-image-frame{position:relative;border:1px solid #364448;background:#0A0F11;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.geotech-main-image{width:100%;height:100%;min-height:360px;max-height:520px;object-fit:cover;display:block;filter:contrast(1.05) brightness(0.95)}
+.geotech-image-overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:18px;background:linear-gradient(180deg,rgba(10,15,17,.4) 0%,transparent 35%,rgba(10,15,17,.88) 100%);pointer-events:none}
+.image-hud-tag{display:inline-flex;align-items:flex-start;gap:8px;background:rgba(12,18,20,.88);border:1px solid rgba(224,159,62,.6);padding:6px 12px;backdrop-filter:blur(6px);max-width:280px}
+.image-hud-tag .hud-indicator{width:6px;height:6px;background:var(--ochre);flex-shrink:0;margin-top:4px}
+.image-hud-tag.tag-probe{align-self:flex-start}
+.image-hud-tag.tag-shear{align-self:flex-end;border-color:rgba(6,182,212,.6)}
+.image-hud-tag.tag-shear .hud-indicator{background:var(--teal)}
+.image-hud-tag b{display:block;font-family:var(--font-mono);font-size:8.5px;letter-spacing:.08em;color:#F0E9D8}
+.image-hud-tag span{display:block;font-family:var(--font-mono);font-size:7.5px;color:#A9B8AF}
+.image-caption-strip{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;color:#B4C4BA;border-top:1px solid rgba(255,255,255,.15);padding-top:10px;margin-top:auto}
+.image-caption-strip span:first-child{color:var(--ochre);font-weight:600}
+.geotech-details-col{display:flex;flex-direction:column;gap:14px}
+.geotech-spec-card{border:1px solid var(--line);background:#151D20;padding:20px;display:flex;flex-direction:column;gap:8px;flex:1}
+.spec-head{display:flex;align-items:center;gap:10px}
+.spec-head h4{font-family:var(--font-display);font-size:16px;font-weight:600;color:#F0E9D8;margin:0}
+.geotech-spec-card p{font-size:11px;line-height:1.65;color:#9AA8A0;margin:0}
+.spec-stat-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:10px;border-top:1px solid var(--line);margin-top:auto}
+.spec-stat-row small{display:block;font-family:var(--font-mono);font-size:7.5px;letter-spacing:.08em;color:var(--muted)}
+.spec-stat-row b{display:block;font-family:var(--font-mono);font-size:12px;color:var(--ochre);margin-top:2px}
+
+/* Feature card GIS contour background */
+.feature-card.gis-card{background-image:linear-gradient(180deg,rgba(22,32,34,.9) 0%,rgba(22,32,34,.97) 100%),url('/assets/lews-contour-texture.png');background-size:cover;background-position:center;border-color:#34464B}
+
 /* Differentiation Table */
 .diff-table-container{overflow-x:auto;margin-top:30px;border:1px solid var(--line)}
 .diff-table{width:100%;border-collapse:collapse;text-align:left;font-size:11px}
@@ -735,7 +778,7 @@ button { color: inherit; }
 .sidebar-explore-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:var(--ochre);color:#12181A;text-decoration:none;font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 
 /* Final CTA */
-.final-cta-section{background:radial-gradient(circle at 80% 30%,rgba(214,162,78,.15),transparent 40%),#141D1F}
+.final-cta-section{background-image:radial-gradient(circle at 80% 30%,rgba(214,162,78,.15),transparent 40%),linear-gradient(180deg,rgba(20,29,31,.92) 0%,rgba(20,29,31,.98) 100%),url('/assets/lews-contour-texture.png');background-size:cover;background-position:center;border-top:1px solid var(--line)}
 .final-cta-card{display:flex;justify-content:space-between;align-items:center;gap:40px;flex-wrap:wrap}
 .final-cta-copy h2{font-family:var(--font-display);font-size:clamp(36px,4.5vw,58px);line-height:1.05;margin:0 0 16px}
 .final-cta-copy em{font-style:italic;color:var(--ochre)}
@@ -812,10 +855,14 @@ button { color: inherit; }
 .settings-save-btn{padding:12px 24px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:8px}
 .settings-saved-indicator{font-family:var(--font-mono);font-size:10px;color:var(--stable);display:flex;align-items:center;gap:6px}
 
-/* Dedicated Application Dashboard Shell */
-.dashboard-app-shell{display:flex;flex-direction:column;min-height:100vh;background:var(--bg)}
-.dashboard-app-header{height:72px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;background:rgba(16,23,25,.97);backdrop-filter:blur(12px);z-index:30}
-.dash-header-left{display:flex;align-items:center;gap:20px}
+/* Dedicated Full-Screen Geospatial Dashboard Shell (Zoom Earth / RSOE EDIS Style) */
+.dashboard-app-shell{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;background:var(--bg);position:relative}
+.dashboard-app-header{height:54px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:relative;background:rgba(11,15,18,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:40;flex-shrink:0}
+.gis-floating-hud{background:rgba(17,23,29,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.1);box-shadow:0 16px 40px rgba(0,0,0,0.7);border-radius:0 !important}
+.gis-floating-hud::-webkit-scrollbar{width:4px}
+.gis-floating-hud::-webkit-scrollbar-track{background:rgba(0,0,0,0.2)}
+.gis-floating-hud::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15)}
+.dash-header-left{display:flex;align-items:center;gap:14px}
 .dash-back-btn{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--muted);text-decoration:none;letter-spacing:.08em;border-right:1px solid var(--line);padding-right:18px;transition:color .2s}
 .dash-back-btn:hover{color:#FFFFFF}
 .dash-header-brand{display:flex;align-items:center;gap:12px}
@@ -1050,7 +1097,7 @@ button { color: inherit; }
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
-  border-radius: 8px !important;
+  border-radius: 0 !important;
 }
 .leaflet-popup-content {
   margin: 0 !important;
