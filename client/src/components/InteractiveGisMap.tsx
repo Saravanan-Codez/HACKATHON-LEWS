@@ -90,6 +90,7 @@ export interface InteractiveGisMapProps {
   onAnalysisPinSelect?: (coords: { lat: number; lng: number; simulatedScore: number }) => void;
   rightPanelOpen?: boolean;
   bottomDrawerOpen?: boolean;
+  t?: (text: string) => string;
 }
 
 type BasemapType = "SATELLITE" | "TOPOGRAPHY" | "DARK_GIS" | "STREET";
@@ -124,6 +125,93 @@ const BASEMAP_CONFIGS: Record<BasemapType, { url: string; attribution: string; m
   },
 };
 
+const GIS_TILE_CACHE = "landsora-gis-tiles-v1";
+
+class CachedTileLayer extends L.TileLayer {
+  createTile(coords: L.Coords, done: L.DoneCallback): HTMLElement {
+    const tile = document.createElement("img");
+    tile.setAttribute("role", "presentation");
+    tile.crossOrigin = "Anonymous";
+
+    const url = this.getTileUrl(coords);
+
+    if (typeof window === "undefined" || !("caches" in window)) {
+      tile.src = url;
+      L.DomEvent.on(tile, "load", () => done(undefined, tile));
+      L.DomEvent.on(tile, "error", (err) => done(err as any, tile));
+      return tile;
+    }
+
+    let isAborted = false;
+    let objectUrl: string | null = null;
+
+    const cleanup = () => {
+      isAborted = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+      }
+    };
+    (tile as any)._cleanup = cleanup;
+
+    L.DomEvent.on(tile, "load", () => done(undefined, tile));
+    L.DomEvent.on(tile, "error", (err) => done(err as any, tile));
+
+    caches
+      .open(GIS_TILE_CACHE)
+      .then((cache) => {
+        if (isAborted) return;
+        return cache.match(url).then((cachedResponse) => {
+          if (isAborted) return;
+          if (cachedResponse) {
+            return cachedResponse.blob().then((blob) => {
+              if (isAborted) return;
+              objectUrl = URL.createObjectURL(blob);
+              tile.src = objectUrl;
+            });
+          }
+          return fetch(url, { mode: "cors" })
+            .then((networkRes) => {
+              if (isAborted) return;
+              if (networkRes.ok) {
+                cache.put(url, networkRes.clone()).catch(() => {});
+                return networkRes.blob().then((blob) => {
+                  if (isAborted) return;
+                  objectUrl = URL.createObjectURL(blob);
+                  tile.src = objectUrl;
+                });
+              }
+              tile.src = url;
+            })
+            .catch(() => {
+              if (!isAborted) {
+                tile.src = url;
+              }
+            });
+        });
+      })
+      .catch(() => {
+        if (!isAborted) {
+          tile.src = url;
+        }
+      });
+
+    return tile;
+  }
+
+  _removeTile(key: string): void {
+    const tile = (this as any)._tiles?.[key]?.el;
+    if (tile && typeof tile._cleanup === "function") {
+      tile._cleanup();
+    }
+    (L.TileLayer.prototype as any)._removeTile?.call(this, key);
+  }
+}
+
+function createCachedTileLayer(url: string, options: L.TileLayerOptions): L.TileLayer {
+  return new CachedTileLayer(url, options);
+}
+
 export function InteractiveGisMap({
   zones,
   selectedZoneId,
@@ -136,6 +224,7 @@ export function InteractiveGisMap({
   onAnalysisPinSelect,
   rightPanelOpen = false,
   bottomDrawerOpen = false,
+  t = (s: string) => s,
 }: InteractiveGisMapProps) {
   const activeZoneId = selectedZoneId || focusedZoneId;
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -224,7 +313,7 @@ export function InteractiveGisMap({
 
       // Tile Layer with noWrap: true to strictly prevent horizontal antimeridian repetition (no duplicate Greenlands)
       const cfg = BASEMAP_CONFIGS["SATELLITE"];
-      const tileLayer = L.tileLayer(cfg.url, {
+      const tileLayer = createCachedTileLayer(cfg.url, {
         maxNativeZoom: cfg.maxNativeZoom,
         maxZoom: 20,
         subdomains: cfg.subdomains || ["0", "1", "2", "3"],
@@ -334,7 +423,7 @@ export function InteractiveGisMap({
       }
 
       const cfg = BASEMAP_CONFIGS[basemap];
-      const newLayer = L.tileLayer(cfg.url, {
+      const newLayer = createCachedTileLayer(cfg.url, {
         maxNativeZoom: cfg.maxNativeZoom,
         maxZoom: 20,
         subdomains: cfg.subdomains || ["0", "1", "2", "3"],
@@ -526,6 +615,11 @@ export function InteractiveGisMap({
         </div>
       `, {
         className: "landsora-leaflet-popup",
+        autoPan: true,
+        autoPanPaddingTopLeft: L.point(80, 80),
+        autoPanPaddingBottomRight: L.point(80, 80),
+        keepInView: true,
+        maxWidth: 320,
       });
 
       group.addLayer(circle);
@@ -764,12 +858,12 @@ export function InteractiveGisMap({
               title="Select Base Map Layer"
             >
               <Layers size={13} className="text-amber-400" />
-              <span>{basemap === "SATELLITE" ? "🛰️ SATELLITE" : basemap === "TOPOGRAPHY" ? "⛰️ TOPO" : basemap === "DARK_GIS" ? "🌑 DARK" : "🗺️ STREET"}</span>
+              <span>{basemap === "SATELLITE" ? `🛰️ ${t("SATELLITE")}` : basemap === "TOPOGRAPHY" ? `⛰️ ${t("TOPOGRAPHY")}` : basemap === "DARK_GIS" ? `🌑 ${t("DARK GIS")}` : `🗺️ ${t("STREET")}`}</span>
               <ChevronDown size={12} className="text-stone-400" />
             </button>
 
             {basemapMenuOpen && (
-              <div className="absolute top-full right-0 mt-1 w-40 bg-[#0c1015]/98 backdrop-blur-2xl border border-white/15 shadow-2xl flex flex-col py-1 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute top-full right-0 mt-1 w-44 bg-[#0c1015]/98 backdrop-blur-2xl border border-white/15 shadow-2xl flex flex-col py-1 z-50 animate-in fade-in zoom-in-95 duration-150">
                 {(["SATELLITE", "TOPOGRAPHY", "DARK_GIS", "STREET"] as BasemapType[]).map((mode) => (
                   <button
                     key={mode}
@@ -784,7 +878,7 @@ export function InteractiveGisMap({
                         : "text-stone-300 hover:text-white hover:bg-white/[0.06]"
                     }`}
                   >
-                    <span>{mode === "SATELLITE" ? "🛰️ Satellite" : mode === "TOPOGRAPHY" ? "⛰️ Topography" : mode === "DARK_GIS" ? "🌑 Dark GIS" : "🗺️ Street Map"}</span>
+                    <span>{mode === "SATELLITE" ? `🛰️ ${t("Satellite")}` : mode === "TOPOGRAPHY" ? `⛰️ ${t("Topography")}` : mode === "DARK_GIS" ? `🌑 ${t("Dark GIS")}` : `🗺️ ${t("Street Map")}`}</span>
                     {basemap === mode && <Check size={12} className="text-amber-400" />}
                   </button>
                 ))}
@@ -804,14 +898,14 @@ export function InteractiveGisMap({
               title="Toggle Hazard Layers & NASA Feed"
             >
               <Radio size={13} className={showNasa ? "text-amber-400 animate-pulse" : "text-stone-400"} />
-              <span>LAYERS {showNasa ? `(${selectedHazardCategory === "ALL" ? nasaEvents.length.toLocaleString() : (selectedHazardCategory === "snow" ? nasaEvents.filter(e => e.category === "snow" || e.category === "seaLakeIce").length : nasaEvents.filter(e => e.category === selectedHazardCategory).length).toLocaleString()})` : ""}</span>
+              <span>{t("LAYERS")} {showNasa ? `(${selectedHazardCategory === "ALL" ? nasaEvents.length.toLocaleString() : (selectedHazardCategory === "snow" ? nasaEvents.filter(e => e.category === "snow" || e.category === "seaLakeIce").length : nasaEvents.filter(e => e.category === selectedHazardCategory).length).toLocaleString()})` : ""}</span>
               <ChevronDown size={12} className="text-stone-400" />
             </button>
 
             {layersMenuOpen && (
               <div className="absolute top-full right-0 mt-1 w-72 bg-[#0c1015]/98 backdrop-blur-2xl border border-white/15 p-3.5 shadow-2xl space-y-3 z-50 text-xs font-mono animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                  <span className="text-amber-400 font-bold tracking-wider uppercase text-[10px]">HAZARD OVERLAYS</span>
+                  <span className="text-amber-400 font-bold tracking-wider uppercase text-[10px]">{t("HAZARD OVERLAYS")}</span>
                   <button type="button" onClick={() => setLayersMenuOpen(false)} className="text-stone-400 hover:text-white p-0.5">
                     <X size={13} />
                   </button>
@@ -821,7 +915,7 @@ export function InteractiveGisMap({
                   <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-white/[0.04] transition-colors">
                     <span className="flex items-center gap-2 text-stone-200">
                       <span>🔥</span>
-                      <span>Landslide Susceptibility</span>
+                      <span>{t("Landslide Susceptibility")}</span>
                     </span>
                     <input
                       type="checkbox"
@@ -834,7 +928,7 @@ export function InteractiveGisMap({
                   <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-white/[0.04] transition-colors">
                     <span className="flex items-center gap-2 text-stone-200">
                       <span>🛡️</span>
-                      <span>Evacuation Corridors</span>
+                      <span>{t("Evacuation Corridors")}</span>
                     </span>
                     <input
                       type="checkbox"
@@ -847,7 +941,7 @@ export function InteractiveGisMap({
                   <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-white/[0.04] transition-colors">
                     <span className="flex items-center gap-2 text-stone-200">
                       <span>📐</span>
-                      <span>Slip Surface Profile</span>
+                      <span>{t("Slip Surface Profile")}</span>
                     </span>
                     <input
                       type="checkbox"
@@ -861,7 +955,7 @@ export function InteractiveGisMap({
                     <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-white/[0.04] transition-colors mb-1.5">
                       <span className="flex items-center gap-2 text-stone-200 font-bold">
                         <Radio size={12} className={showNasa ? "text-amber-400 animate-pulse" : "text-stone-500"} />
-                        <span>NASA Live Hazards</span>
+                        <span>{t("NASA Live Hazards")}</span>
                       </span>
                       <input
                         type="checkbox"
@@ -878,33 +972,33 @@ export function InteractiveGisMap({
                         className="w-full bg-[#162028] text-[10.5px] font-mono font-bold text-amber-300 border border-amber-500/40 p-1.5 rounded-none outline-none cursor-pointer mt-1"
                         aria-label="Filter NASA hazard category"
                       >
-                        <option value="ALL" className="bg-[#11171D] text-stone-200">🌐 ALL LIVE EVENTS ({nasaEvents.length.toLocaleString()})</option>
+                        <option value="ALL" className="bg-[#11171D] text-stone-200">🌐 {t("ALL LIVE EVENTS")} ({nasaEvents.length.toLocaleString()})</option>
                         {nasaEvents.filter(e => e.category === "severeStorms").length > 0 && (
-                          <option value="severeStorms" className="bg-[#11171D] text-cyan-300">🌀 SEVERE STORMS ({nasaEvents.filter(e => e.category === "severeStorms").length})</option>
+                          <option value="severeStorms" className="bg-[#11171D] text-cyan-300">🌀 {t("SEVERE STORMS")} ({nasaEvents.filter(e => e.category === "severeStorms").length})</option>
                         )}
                         {nasaEvents.filter(e => e.category === "volcanoes").length > 0 && (
-                          <option value="volcanoes" className="bg-[#11171D] text-red-300">🌋 VOLCANOES ({nasaEvents.filter(e => e.category === "volcanoes").length})</option>
+                          <option value="volcanoes" className="bg-[#11171D] text-red-300">🌋 {t("VOLCANOES")} ({nasaEvents.filter(e => e.category === "volcanoes").length})</option>
                         )}
                         {nasaEvents.filter(e => e.category === "landslides").length > 0 && (
-                          <option value="landslides" className="bg-[#11171D] text-amber-300">⛰️ LANDSLIDES ({nasaEvents.filter(e => e.category === "landslides").length})</option>
+                          <option value="landslides" className="bg-[#11171D] text-amber-300">⛰️ {t("LANDSLIDES")} ({nasaEvents.filter(e => e.category === "landslides").length})</option>
                         )}
                         {nasaEvents.filter(e => e.category === "floods").length > 0 && (
-                          <option value="floods" className="bg-[#11171D] text-blue-300">🌊 FLOODS ({nasaEvents.filter(e => e.category === "floods").length})</option>
+                          <option value="floods" className="bg-[#11171D] text-blue-300">🌊 {t("FLOODS")} ({nasaEvents.filter(e => e.category === "floods").length})</option>
                         )}
                         {nasaEvents.filter(e => e.category === "earthquakes").length > 0 && (
-                          <option value="earthquakes" className="bg-[#11171D] text-yellow-300">⚡ EARTHQUAKES ({nasaEvents.filter(e => e.category === "earthquakes").length})</option>
+                          <option value="earthquakes" className="bg-[#11171D] text-yellow-300">⚡ {t("EARTHQUAKES")} ({nasaEvents.filter(e => e.category === "earthquakes").length})</option>
                         )}
                         {nasaEvents.filter(e => e.category === "seaLakeIce" || e.category === "snow").length > 0 && (
-                          <option value="snow" className="bg-[#11171D] text-sky-300">❄️ SEA ICE & SNOW ({nasaEvents.filter(e => e.category === "seaLakeIce" || e.category === "snow").length})</option>
+                          <option value="snow" className="bg-[#11171D] text-sky-300">❄️ {t("SEA ICE & SNOW")} ({nasaEvents.filter(e => e.category === "seaLakeIce" || e.category === "snow").length})</option>
                         )}
                         {nasaEvents.filter(e => e.category === "wildfires").length > 0 && (
-                          <option value="wildfires" className="bg-[#11171D] text-orange-300">🔥 WILDFIRES ({nasaEvents.filter(e => e.category === "wildfires").length.toLocaleString()})</option>
+                          <option value="wildfires" className="bg-[#11171D] text-orange-300">🔥 {t("WILDFIRES")} ({nasaEvents.filter(e => e.category === "wildfires").length.toLocaleString()})</option>
                         )}
                         {nasaEvents.filter(e => e.category === "drought").length > 0 && (
-                          <option value="drought" className="bg-[#11171D] text-amber-200">☀️ DROUGHT ({nasaEvents.filter(e => e.category === "drought").length})</option>
+                          <option value="drought" className="bg-[#11171D] text-amber-200">☀️ {t("DROUGHT")} ({nasaEvents.filter(e => e.category === "drought").length})</option>
                         )}
                         {nasaEvents.filter(e => e.category === "dustHaze").length > 0 && (
-                          <option value="dustHaze" className="bg-[#11171D] text-stone-300">💨 DUST & HAZE ({nasaEvents.filter(e => e.category === "dustHaze").length})</option>
+                          <option value="dustHaze" className="bg-[#11171D] text-stone-300">💨 {t("DUST & HAZE")} ({nasaEvents.filter(e => e.category === "dustHaze").length})</option>
                         )}
                       </select>
                     )}
@@ -1006,13 +1100,13 @@ export function InteractiveGisMap({
         {/* Right Active Stations Legend */}
         <div className="flex items-center gap-2 px-2.5 py-1 rounded-none bg-stone-900/90 backdrop-blur-md border border-stone-800 text-[10px] font-mono pointer-events-auto">
           <span className="text-emerald-400 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-none bg-emerald-400" /> STABLE
+            <span className="w-1.5 h-1.5 rounded-none bg-emerald-400" /> {t("STABLE")}
           </span>
           <span className="text-amber-400 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-none bg-amber-400" /> WATCH
+            <span className="w-1.5 h-1.5 rounded-none bg-amber-400" /> {t("WATCH")}
           </span>
           <span className="text-red-400 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-none bg-red-400 animate-pulse" /> CRITICAL
+            <span className="w-1.5 h-1.5 rounded-none bg-red-400 animate-pulse" /> {t("CRITICAL")}
           </span>
           {analysisPin && (
             <button

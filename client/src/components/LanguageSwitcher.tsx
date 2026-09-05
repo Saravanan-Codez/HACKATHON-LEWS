@@ -85,10 +85,10 @@ export function LanguageSwitcher({
       <button
         type="button"
         onClick={() => setDropdownOpen((prev) => !prev)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-900/95 hover:bg-stone-850 border border-stone-700/80 hover:border-amber-500/50 shadow-md transition-all text-stone-200 group"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-none bg-stone-900/95 hover:bg-stone-850 border border-stone-700/80 hover:border-amber-500/50 shadow-md transition-all text-stone-200 group"
         title="Google Translate — Select Language"
       >
-        <div className="flex items-center justify-center w-5 h-5 rounded bg-blue-600/20 text-blue-400 border border-blue-500/40 group-hover:scale-105 transition-transform">
+        <div className="flex items-center justify-center w-5 h-5 rounded-none bg-blue-600/20 text-blue-400 border border-blue-500/40 group-hover:scale-105 transition-transform">
           <GoogleTranslateIcon className="w-3.5 h-3.5 text-blue-400" />
         </div>
 
@@ -99,7 +99,7 @@ export function LanguageSwitcher({
             {activeLangObj.nativeLabel}
           </span>
           {autoDetectLanguage && (
-            <span className="text-[9px] font-mono font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/40 px-1 rounded ml-0.5">
+            <span className="text-[9px] font-mono font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/40 px-1 rounded-none ml-0.5">
               AUTO
             </span>
           )}
@@ -115,18 +115,18 @@ export function LanguageSwitcher({
 
       {/* 2. Google Translate Dropdown Modal */}
       {dropdownOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl bg-stone-950/98 backdrop-blur-xl border border-stone-700/90 shadow-2xl z-[10000] overflow-hidden flex flex-col max-h-[480px] animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-none bg-stone-950/98 backdrop-blur-xl border border-stone-700/90 shadow-2xl z-[10000] overflow-hidden flex flex-col max-h-[480px] animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
           <div className="p-3 border-b border-stone-800/90 bg-stone-900/60 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-md bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                <div className="p-1.5 rounded-none bg-blue-600/20 text-blue-400 border border-blue-500/30">
                   <GoogleTranslateIcon className="w-4 h-4 text-blue-400" />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-stone-100 font-mono tracking-wide uppercase flex items-center gap-1.5">
                     <span>Google Translate</span>
-                    <span className="text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/40 px-1 py-0.2 rounded font-sans font-normal">
+                    <span className="text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/40 px-1 py-0.2 rounded-none font-sans font-normal">
                       Live
                     </span>
                   </h4>
@@ -136,7 +136,7 @@ export function LanguageSwitcher({
               <button
                 type="button"
                 onClick={() => setDropdownOpen(false)}
-                className="text-stone-400 hover:text-white p-1 rounded-md hover:bg-stone-800"
+                className="text-stone-400 hover:text-white p-1 rounded-none hover:bg-stone-800"
               >
                 <X size={14} />
               </button>
@@ -150,7 +150,7 @@ export function LanguageSwitcher({
                 placeholder="Search languages (e.g., Kannada, Spanish, বাংলা)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-stone-900 border border-stone-700/80 text-xs text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-500/80 font-sans"
+                className="w-full pl-8 pr-3 py-1.5 rounded-none bg-stone-900 border border-stone-700/80 text-xs text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-500/80 font-sans"
                 autoFocus
               />
             </div>
@@ -163,7 +163,7 @@ export function LanguageSwitcher({
                     key={tab}
                     type="button"
                     onClick={() => setActiveTab(tab)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all ${
+                    className={`px-2 py-0.5 rounded-none text-[10px] font-mono font-bold transition-all ${
                       activeTab === tab
                         ? "bg-amber-500 text-stone-950 shadow-sm"
                         : "text-stone-400 hover:text-stone-200 hover:bg-stone-850"
@@ -186,7 +186,7 @@ export function LanguageSwitcher({
                       setDropdownOpen(false);
                     }
                   }}
-                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono transition-all ${
+                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-mono transition-all ${
                     autoDetectLanguage
                       ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
                       : "text-stone-400 hover:text-stone-200 bg-stone-900 border border-stone-800"
@@ -203,7 +203,7 @@ export function LanguageSwitcher({
                     onDetectGpsLocation();
                     setDropdownOpen(false);
                   }}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono text-stone-400 hover:text-stone-200 bg-stone-900 border border-stone-800 hover:border-stone-700"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-mono text-stone-400 hover:text-stone-200 bg-stone-900 border border-stone-800 hover:border-stone-700"
                   title="Detect GPS coordinates"
                 >
                   <MapPin size={11} className="text-emerald-400" />
@@ -231,7 +231,7 @@ export function LanguageSwitcher({
                       onLanguageChange(item.code);
                       setDropdownOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-none text-left transition-all ${
                       isSelected
                         ? "bg-amber-500/15 border border-amber-500/40 text-amber-200 shadow-sm"
                         : "hover:bg-stone-900 text-stone-300 hover:text-stone-100"
@@ -258,7 +258,7 @@ export function LanguageSwitcher({
 
                     <div className="shrink-0 ml-2">
                       {isSelected ? (
-                        <div className="w-5 h-5 rounded-full bg-amber-500 text-stone-950 flex items-center justify-center shadow-sm">
+                        <div className="w-5 h-5 rounded-none bg-amber-500 text-stone-950 flex items-center justify-center shadow-sm">
                           <Check size={12} strokeWidth={3} />
                         </div>
                       ) : (

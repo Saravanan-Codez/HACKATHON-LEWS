@@ -42,6 +42,61 @@ const LANG_CODE_MAP: Record<string, string> = {
   UK: "uk", // Ukrainian
 };
 
+// Fallback dictionary for common emergency & test phrases to guard against Google 429 rate limits
+const FALLBACK_SERVER_DICT: Record<string, Record<string, string>> = {
+  "Evacuate immediately": {
+    ta: "உடனடியாக வெளியேறவும்",
+    hi: "तुरंत बाहर निकलें",
+    kn: "ತಕ್ಷಣ ತೆರವುಗೊಳಿಸಿ",
+    te: "వెంటనే ఖాళీ చేయండి",
+    ml: "ഉടൻ ഒഴിഞ്ഞുപോകുക",
+  },
+  "Road corridor blocked": {
+    ta: "சாலை வழித்தடம் அடைக்கப்பட்டுள்ளது",
+    hi: "सड़क गलियारा अवरुद्ध",
+    kn: "ರಸ್ತೆ ಕಾರಿಡಾರ್ ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ",
+    te: "రహదారి కారిడార్ బ్లాక్ చేయబడింది",
+    ml: "റോഡ് തടസ്സപ്പെട്ടിരിക്കുന്നു",
+  },
+  "Safe shelter location": {
+    ta: "பாதுகாப்பான தங்குமிடம் இடம்",
+    hi: "सुरक्षित आश्रय स्थान",
+    kn: "ಸುರಕ್ಷಿತ ಆಶ್ರಯ ಸ್ಥಳ",
+    te: "సురక్షిత ఆశ్రయ స్థానం",
+    ml: "സുരക്ഷിത അഭയകേന്ദ്രം",
+  },
+  "Landslide warning: High slope saturation": {
+    kn: "ಭೂಕುಸಿತ ಎಚ್ಚರಿಕೆ: ಹೆಚ್ಚಿನ ಇಳಿಜಾರು ಶುದ್ಧತ್ವ",
+    hi: "भूस्खलन चेतावनी: उच्च ढलान संतृप्ति",
+    ta: "நிலச்சரிவு எச்சரிக்கை: அதிக சரிவு செறிவு",
+  },
+  "Heavy rainfall detected": {
+    hi: "भारी वर्षा का पता चला",
+    kn: "ಭಾರಿ ಮಳೆ ಪತ್ತೆಯಾಗಿದೆ",
+    ta: "கனமழை கண்டறியப்பட்டது",
+  },
+};
+
+const TECHNICAL_UNITS = new Set([
+  "mm", "mm/hr", "mm/h", "cm", "m", "km", "km/h", "km/hr", "m/s", "m/s²",
+  "°", "°c", "°f", "°/hr", "°/h", "deg", "%", "v", "mv", "hpa", "kpa", "pa",
+  "bar", "mbar", "x", "s", "sec", "min", "mins", "h", "hr", "hrs", "d", "days",
+  "hz", "khz", "mhz", "ghz", "db", "dbm", "bps", "kbps", "mbps",
+  "lat", "lng", "lon", "fos", "g", "ms", "bytes", "kb", "mb", "gb"
+]);
+
+function isUnitOrNumber(text: string): boolean {
+  if (!text) return true;
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  if (TECHNICAL_UNITS.has(trimmed.toLowerCase())) return true;
+  if (/^[+-]?[0-9,]+(?:\.[0-9]+)?$/.test(trimmed)) return true;
+  if (/^[+-]?[0-9,]+(?:\.[0-9]+)?\s*(?:mm(?:\/hr|\/h)?|cm|m(?:\/s²?)?|km(?:\/h|\/hr)?|°(?:\/hr|\/h|[CF])?|%|v|mv|hpa|kpa|pa|bar|mbar|x|s|sec|min|mins|h|hr|hrs|d|days|hz|khz|mhz|db|dbm|bps|kbps|mbps|g|ms|bytes|kb|mb|gb)$/i.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * High-speed Google Translate integration for Indic & English translations
  */
@@ -52,7 +107,12 @@ export async function translateText(
   const trimmed = text.trim();
   if (!trimmed) return text;
 
-  const targetCode = LANG_CODE_MAP[targetLang.toUpperCase()] || targetLang.toLowerCase();
+  // Never translate units or numbers
+  if (isUnitOrNumber(trimmed)) {
+    return trimmed;
+  }
+
+  const targetCode = (LANG_CODE_MAP[targetLang.toUpperCase()] || targetLang.toLowerCase()).toLowerCase();
   if (targetCode === "en" && /^[\x00-\x7F]*$/.test(trimmed)) {
     return trimmed;
   }
@@ -60,6 +120,13 @@ export async function translateText(
   const cacheKey = `${targetCode}:${trimmed}`;
   if (translationCache.has(cacheKey)) {
     return translationCache.get(cacheKey)!;
+  }
+
+  // Check fallback server dictionary
+  if (FALLBACK_SERVER_DICT[trimmed] && FALLBACK_SERVER_DICT[trimmed][targetCode]) {
+    const cached = FALLBACK_SERVER_DICT[trimmed][targetCode];
+    translationCache.set(cacheKey, cached);
+    return cached;
   }
 
   try {
@@ -76,11 +143,18 @@ export async function translateText(
       }
     }
   } catch (err: any) {
-    console.warn(`[Google Translate Error (${targetCode})]:`, err.message || err);
+    // Return cached fallback dictionary if available
+    if (FALLBACK_SERVER_DICT[trimmed] && FALLBACK_SERVER_DICT[trimmed][targetCode]) {
+      return FALLBACK_SERVER_DICT[trimmed][targetCode];
+    }
+    // Only warn if not a common 429
+    if (err.response?.status !== 429) {
+      console.warn(`[Google Translate Error (${targetCode})]:`, err.message || err);
+    }
   }
 
-  // If online lookup fails, return original trimmed string
-  return trimmed;
+  // If online lookup fails, return fallback or original trimmed string
+  return FALLBACK_SERVER_DICT[trimmed]?.[targetCode] || trimmed;
 }
 
 /**
