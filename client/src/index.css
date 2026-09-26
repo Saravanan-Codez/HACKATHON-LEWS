@@ -653,6 +653,7 @@ button { color: inherit; }
 .marketing-brand-text{display:flex;flex-direction:column;line-height:1.1}
 .marketing-brand-name{font-family:var(--font-mono);font-size:16px;font-weight:700;letter-spacing:.12em;color:#F0E9D8}
 .marketing-brand-sub{font-family:var(--font-mono);font-size:8px;letter-spacing:.08em;color:var(--muted);margin-top:2px}
+.marketing-brand-credit{font-family:var(--font-mono);font-size:6px;letter-spacing:.08em;color:var(--muted-dark);margin-top:2px;white-space:nowrap}
 .marketing-nav-links{display:flex;align-items:center;gap:18px;flex-shrink:0}
 .nav-link-btn{background:none;border:none;color:var(--muted);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:color .2s}
 .nav-link-btn:hover{color:var(--text)}
