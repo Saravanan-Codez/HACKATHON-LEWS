@@ -147,7 +147,7 @@ export default function LandingPage() {
           <div className="marketing-brand-text">
             <span className="marketing-brand-name">Landsora</span>
             <span className="marketing-brand-sub">LANDSLIDE EARLY WARNING</span>
-            <span className="marketing-brand-credit">BUILT BY JAI KISHORE G.V.</span>
+            <span className="marketing-brand-credit">BUILT BY JAI KISHORE G.V</span>
           </div>
         </div>
 
