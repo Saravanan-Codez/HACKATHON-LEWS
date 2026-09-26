@@ -827,6 +827,7 @@ export default function LandingPage() {
         <div className="footer-bottom">
           <span>MIT LICENSE · COPYRIGHT © 2026 LANDSORA LEWS</span>
           <span className="footer-disclaimer-tag">DECISION SUPPORT CONSOLE — NOT AN OFFICIAL BULLETIN</span>
+          <span>Made by Jai Kishore G.V.</span>
         </div>
       </footer>
     </div>
